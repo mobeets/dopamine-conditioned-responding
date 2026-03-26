@@ -9,8 +9,7 @@ from scipy.stats import ranksums
 
 D = QianBurrell2024()
 
-#%% avg dopamine and anticipatory lick rates in Cond, Deg, and CuedRew
-# last day, Odor A
+#%% avg dopamine and anticipatory lick rates in Cond, Deg, and CuedRew (last day, Odor A)
 
 do_save = False
 figs = plot_average_outcome_per_session(D, colors=['k','k','k'])
@@ -19,9 +18,6 @@ handle_fig(figs[1], 'qb_avg_lick', do_save=do_save)
 handle_fig(figs[2], 'qb_value', do_save=do_save)
 
 #%% show example trials (DA and licking)
-
-# (10, 1.23, 13)
-# (-1, 4.24, 25)
 
 do_save = False
 trials = D.Sessions[23]

@@ -3,13 +3,12 @@
 import numpy as np
 from numpy.random import default_rng
 from sklearn.linear_model import LinearRegression, Ridge, LogisticRegression
-from sklearn.model_selection import cross_val_score, KFold
+from sklearn.model_selection import KFold
+from tqdm import tqdm
+
 from td import create_experiment, create_experiment_multiple_cues
 from figure_helpers import plt, handle_fig
-from regression_model import zscore_if_possible
-from scipy.stats import norm
-from regression_model import get_data_per_session
-from tqdm import tqdm
+from regression_model import zscore_if_possible, get_data_per_session
 
 #%% experiment and agent helper functions
 

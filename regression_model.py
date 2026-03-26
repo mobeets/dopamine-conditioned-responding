@@ -20,18 +20,6 @@ def zscore_if_possible(y, mu=None, sd=None):
 
 #%% functions
 
-def cv_scores(data, model, nfolds=5, seed=666):
-    kf = KFold(n_splits=nfolds, shuffle=True, random_state=seed)
-    scores = []
-
-    for train_idx, test_idx in kf.split(data['X']):
-        X_train, X_test = data['X'][train_idx], data['X'][test_idx]
-        y_train, y_test = data['y'][train_idx], data['y'][test_idx]
-        
-        model.fit(X_train, y_train)
-        scores.append(model.score(X_test, y_test))  # R² score
-    return scores
-
 def get_feature_from_trials(trials, field_name, window=None, trial_types=None, mode='mean', trial_type_key='trial_type'):
     trial_keeper = lambda trial: (trial_types is None) or (trial[trial_type_key] in trial_types)
 

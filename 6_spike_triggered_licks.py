@@ -1,7 +1,5 @@
 #%% imports
 
-from figure_helpers import cond_clrs
-from regression_model import cv_scores
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import log_loss
 import statsmodels.api as sm
@@ -394,13 +392,10 @@ mouse_names = np.unique([session[0]['mouse'] for session in D1.Sessions])
 mouse_name = None
 if block_name == 'conditioning':
     day_indices = np.arange(5)
-    # clr_da = cond_clrs[0]
 elif block_name == 'degradation':
     day_indices = np.arange(5,10)
-    # clr_da = cond_clrs[1]
 elif block_name == 'example':
     day_indices = [0]
-    # clr_da = cond_clrs[0]
     mouse_name = mouse_names[7]
 else:
     day_indices = None

@@ -16,7 +16,6 @@ mpl.rcParams['figure.dpi'] = 300
 mpl.rcParams['figure.figsize'] = (3,3)
 
 DA_color = 'black'
-cond_clrs = {0: '#4E9E7C', 1: '#E88355', 2: '#7571AE', 3: 'gray'}
 
 def handle_fig(fig, filename, do_save=True, overwrite=True, ext='pdf', savedir='figures'):
     if not do_save:
@@ -31,6 +30,7 @@ def handle_fig(fig, filename, do_save=True, overwrite=True, ext='pdf', savedir='
 
 #%% for showing bulk averages per condition
 
+cond_clrs = {0: '#4E9E7C', 1: '#E88355', 2: '#7571AE', 3: 'gray'}
 def plot_average_outcome_per_session(D, colors=cond_clrs):
     if 'Qian' not in D.exp_name:
         raise Exception('Invalid experiment name.')
