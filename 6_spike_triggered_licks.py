@@ -1,11 +1,16 @@
 #%% imports
 
-# imports from 1_2_4_dopamine_licking
-# D = QianBurrell2024()
+import numpy as np
 import scipy.stats
+from data_loaders import QianBurrell2024
+from figure_helpers import plt, handle_fig
 from regression_model import zscore_if_possible
 
-#%%
+#%% load sessions
+
+D = QianBurrell2024()
+
+#%% function helpers
 
 def plot_licks_and_da(xs, licks_around_peak, da_around_peak, clr_licks='k', clr_da=(0.6,0.2,0.2), title='', ylims=None):
     """
@@ -55,9 +60,7 @@ def plot_licks_and_da(xs, licks_around_peak, da_around_peak, clr_licks='k', clr_
     plt.tight_layout()
     return fig, [ax1, ax2]
 
-#%%
-
-def get_spike_triggered_licks(D1, mouse_name=None, trial_types=None, trial_period=None, day_indices=None, t_pre=30, t_post=30, da_threshold=3.0, da_threshold_max=None, da_refractory=10, bin_size=20, da_stats=None, trigger_on_licks_not_da=False, trials_only=False):
+def get_spike_triggered_licks(D, mouse_name=None, trial_types=None, trial_period=None, day_indices=None, t_pre=30, t_post=30, da_threshold=3.0, da_threshold_max=None, da_refractory=10, bin_size=20, da_stats=None, trigger_on_licks_not_da=False, trials_only=False):
     """
     mouse_name is the name of the mouse (or list of mice) to analyze, or None for all mice
     trial_types is a list of trial types to include in the analysis
@@ -70,13 +73,13 @@ def get_spike_triggered_licks(D1, mouse_name=None, trial_types=None, trial_perio
     bin_size is time in ms of bin size for DA and licking rate (used to scale x-axis)
     """
     if mouse_name is None:
-        sessions = D1.Sessions
+        sessions = D.Sessions
         title = 'All mice'
     elif type(mouse_name) is str:
-        sessions = [session for session in D1.Sessions if session[0]['mouse'] == mouse_name]
+        sessions = [session for session in D.Sessions if session[0]['mouse'] == mouse_name]
         title = f"Mouse {mouse_name}"
     else:
-        sessions = [session for session in D1.Sessions if session[0]['mouse'] in mouse_name]
+        sessions = [session for session in D.Sessions if session[0]['mouse'] in mouse_name]
         title = f"Mice {', '.join(mouse_name)}"
     if len(sessions) == 0:
         return None, None, None, None
@@ -187,8 +190,6 @@ def get_spike_triggered_licks(D1, mouse_name=None, trial_types=None, trial_perio
     xs = bin_size * np.arange(-t_pre, t_post)
     return xs, licks_around_peak, da_around_peak, {'da_mean': da_mean, 'da_std': da_std, 'all_da': all_da, 'all_licks': all_licks, 'lick_mean': lick_mean, 'lick_std': lick_std}
 
-#%%
-
 def dprime_vector(Z1, Z2, ignore_nan=True):
     """
     Compute per-feature d' between Z1 and Z2.
@@ -227,8 +228,8 @@ def dprime_vector(Z1, Z2, ignore_nan=True):
     
     return dprimes
 
-def dprime_licks(D1, mouse_name=None, trial_types=None, trial_period=None, day=None, t_for_dprime=200, da_stats=None, da_threshold=3.0, trigger_on_licks_not_da=False):
-    xs, licks_around_peak, da_around_peak, da_stats_c = get_spike_triggered_licks(D1, mouse_name=mouse_name, trial_types=trial_types, trial_period=trial_period, day_indices=[day], da_stats=da_stats, da_threshold=da_threshold, trigger_on_licks_not_da=trigger_on_licks_not_da)
+def dprime_licks(D, mouse_name=None, trial_types=None, trial_period=None, day=None, t_for_dprime=200, da_stats=None, da_threshold=3.0, trigger_on_licks_not_da=False):
+    xs, licks_around_peak, da_around_peak, da_stats_c = get_spike_triggered_licks(D, mouse_name=mouse_name, trial_types=trial_types, trial_period=trial_period, day_indices=[day], da_stats=da_stats, da_threshold=da_threshold, trigger_on_licks_not_da=trigger_on_licks_not_da)
     if xs is None:
         return np.nan, None, None, {'da_mean': np.nan, 'da_std': np.nan, 'lick_mean': np.nan, 'lick_std': np.nan}
 
@@ -250,86 +251,20 @@ def dprime_licks(D1, mouse_name=None, trial_types=None, trial_period=None, day=N
         dp = -dp
     return dp, vs_pre, vs_post, da_stats_c
 
-#%%
-
-def get_dprime_cs_licks(D, mouse_name=None, trial_types=None, day_indices=None):
-    """
-    """
-    if mouse_name is None:
-        sessions = D.Sessions
-        title = 'All mice'
-    elif type(mouse_name) is str:
-        sessions = [session for session in D.Sessions if session[0]['mouse'] == mouse_name]
-        title = f"Mouse {mouse_name}"
-    else:
-        sessions = [session for session in D.Sessions if session[0]['mouse'] in mouse_name]
-        title = f"Mice {', '.join(mouse_name)}"
-    if len(sessions) == 0:
-        return None
-
-    dps = []
-    tts = []
-    for session in sessions:
-        xs = []
-        ys = []
-        for t, trial in enumerate(session):
-            if trial_types is not None and trial['trial_type'] not in trial_types:
-                continue
-            if day_indices is not None and trial['day_index'] not in day_indices:
-                continue
-            tts.append(trial['trial_type'])
-
-            da = trial['DA']
-            licks = trial['licks']
-            if len(da) == 0 or len(licks) == 0:
-                continue
-            
-            t_start_da = D.odor_onset
-            t_offset_da = 1.0
-            t_start_licks = D.odor_onset
-            t_offset_licks = 2.5
-
-            # t_start_da = 0.0
-            # t_offset_da = 1.0
-            # t_start_licks = 0.0
-            # t_offset_licks = 2.0
-
-            ix_da = (trial['times'] >= t_start_da) & (trial['times'] <= t_start_da + t_offset_da)
-            da = da[ix_da].mean()
-            ix_licks = (trial['times'] >= t_start_licks) & (trial['times'] <= t_start_licks + t_offset_licks)
-            licks = licks[ix_licks].mean()
-            xs.append(da)
-            ys.append(licks)
-        if len(xs) == 0 or len(ys) == 0:
-            continue
-        xs = np.hstack(xs)
-        x_thresh = np.nanmedian(xs)
-        ys = np.hstack(ys)
-        dp = dprime_vector(ys[xs >= x_thresh], ys[xs < x_thresh])[0]
-        dps.append(dp)
-    if len(dps) == 0:
-        return None
-    dps = np.array(dps)
-    return dps
-
 #%% plot example trial of licking and DA during ITI
 
 do_save = False
-D = D1
 
 trial_types = None; trial_period = 'ITI'
-
 clr_da = 'red'
-mouse_names = np.unique([session[0]['mouse'] for session in D1.Sessions])
+mouse_names = np.unique([session[0]['mouse'] for session in D.Sessions])
 mouse_name = mouse_names[7]
 day_indices = [0]
-
-ylims = None # [[1.5,7.5],[-0.8,4.5]]
+ylims = None
+trial_index = 50
 
 xs, licks_around_peak, da_around_peak, cur_stats = get_spike_triggered_licks(D, mouse_name=mouse_name, trial_types=trial_types, trial_period=trial_period, day_indices=day_indices, da_stats=None, trigger_on_licks_not_da=False)
 bin_size = np.median(np.diff(xs)).astype(int)
-
-trial_index = 50
 
 fig = plt.figure(figsize=(3,3))
 plt.plot(xs, da_around_peak[trial_index], 'k-')
@@ -346,66 +281,29 @@ handle_fig(fig, f"spike_triggered_licks_example_trial", do_save=do_save)
 #%% spike-triggered average of licking relative to DA transients
 
 do_save = False
-D = D1
-
-# trial_types = ('background',); trial_period = None
 trial_types = None; trial_period = 'ITI'
-
 block_name = 'conditioning'
-# block_name = 'degradation'
-# block_name = 'example'
-
+day_indices = np.arange(5)
 clr_da = 'black'
-mouse_names = np.unique([session[0]['mouse'] for session in D1.Sessions])
-mouse_name = None
-if block_name == 'conditioning':
-    day_indices = np.arange(5)
-elif block_name == 'degradation':
-    day_indices = np.arange(5,10)
-elif block_name == 'example':
-    day_indices = [0]
-    mouse_name = mouse_names[7]
-else:
-    day_indices = None
-
-trigger_on_licks_not_da = False
-# ylims = [[-2,25],[-1,5]]
-# ylims = [[0,10],[-1,5]]
 ylims = [[1.5,7.5],[-0.8,4.5]]
-if block_name == 'example':
-    ylims = [[0, 13], None]
-# ylims = None
 
-# _, _, _, all_stats = get_spike_triggered_licks(D, mouse_name=mouse_name, trial_types=trial_types, trial_period=trial_period, day_indices=np.arange(10), trigger_on_licks_not_da=trigger_on_licks_not_da)
-all_stats = None
-
-xs, licks_around_peak, da_around_peak, cur_stats = get_spike_triggered_licks(D, mouse_name=mouse_name, trial_types=trial_types, trial_period=trial_period, day_indices=day_indices, da_stats=all_stats, trigger_on_licks_not_da=trigger_on_licks_not_da)
+xs, licks_around_peak, da_around_peak, cur_stats = get_spike_triggered_licks(D, mouse_name=None, trial_types=trial_types, trial_period=trial_period, day_indices=day_indices, da_stats=None, trigger_on_licks_not_da=False)
 bin_size = np.median(np.diff(xs)).astype(int)
-if block_name == 'example':
-    da_around_peak = None
 fig, axs = plot_licks_and_da(xs, (1000/bin_size)*licks_around_peak, da_around_peak, clr_da='k', clr_licks='darkred', ylims=ylims)
 handle_fig(fig, f"spike_triggered_licks_{block_name}", do_save=do_save)
 
 #%% spike-triggered average of licking relative to DA transients
 
 do_save = False
-D = D1
 
-# trial_types = ('background',); trial_period = None
 trial_types = None; trial_period = 'ITI'
-
-day_indices = np.arange(4)
-
-mouse_names = np.unique([session[0]['mouse'] for session in D1.Sessions])
-# mouse_name = mouse_names[5]
-mouse_name = None
-# mouse_name = [mouse for mouse in mouse_names if '_C' in mouse]
-
+day_indices = np.arange(5)
 da_thresholds = np.arange(-1,6)
+
 cmap = plt.get_cmap('Reds', len(da_thresholds))
 fig = plt.figure()
 for i, da_threshold in enumerate(da_thresholds):
-    xs, licks_around_peak, da_around_peak, _ = get_spike_triggered_licks(D, mouse_name=mouse_name, trial_types=trial_types, trial_period=trial_period, day_indices=day_indices, da_stats=None, da_threshold=da_threshold, da_threshold_max=da_threshold+1, trigger_on_licks_not_da=False)
+    xs, licks_around_peak, da_around_peak, _ = get_spike_triggered_licks(D, mouse_name=None, trial_types=trial_types, trial_period=trial_period, day_indices=day_indices, da_stats=None, da_threshold=da_threshold, da_threshold_max=da_threshold+1, trigger_on_licks_not_da=False)
 
     bin_size = np.median(np.diff(xs)).astype(int)
     licks_around_peak = (1000/bin_size) * licks_around_peak  # convert to Hz
@@ -416,28 +314,22 @@ for i, da_threshold in enumerate(da_thresholds):
 plt.xlabel('Time rel. to DA peak (ms)')
 plt.ylabel('Lick rate (Hz)')
 plt.legend(fontsize=6, title='DA peak range:', title_fontsize=6)
-plt.ylim([1.5,7.5])
+plt.ylim([1.0,6.5])
 
 handle_fig(fig, f"spike_triggered_licks_dose", do_save=do_save)
 
 #%% plot raster of licks
 
 do_save = False
-D = D1
 t_for_dprime = 250
-
-# trial_types = ('background',); trial_period = None
 trial_types = None; trial_period = 'ITI'
 day = 0
 mouse_name = mouse_names[7]
 
 _, _, _, all_stats = get_spike_triggered_licks(D, mouse_name=mouse_name, trial_types=trial_types, trial_period=trial_period, day_indices=np.arange(10))
-# all_stats = None
-
 dp, licks_pre, licks_post, da_stats_c = dprime_licks(D, mouse_name=mouse_name, trial_types=trial_types, trial_period=trial_period, day=day, da_stats=all_stats, t_for_dprime=t_for_dprime)
 
 stats, pval = scipy.stats.wilcoxon(licks_pre, licks_post)
-
 print(f"Mouse {mouse_name}, day {day}, d' = {dp:.2f}")
 print(f"Wilcoxon signed-rank test: statistic={stats:.3f}, p-value={pval:.3f}")
 licks = np.hstack([da_stats_c['licks_pre'], da_stats_c['licks_post']])
@@ -445,13 +337,10 @@ licks[licks == 0] = np.nan # to make transparent
 
 fig = plt.figure(figsize=(3, 3))
 plt.imshow(-licks, cmap='gray', aspect='auto', interpolation='nearest')
-
 xs = np.arange(0, t_for_dprime, bin_size)
 times = np.hstack([-xs[::-1], xs[1:]])
-
 plt.xticks(ticks=np.arange(0, licks.shape[1])[2::5]-0.5, labels=times[2::5], rotation=45)
 plt.axvline(np.where(times == 0)[0][0]-0.5, ymin=0, ymax=1, color='gray', linestyle='-', linewidth=1, zorder=-1)
-
 plt.xlabel('Time rel. to DA peak (ms)')
 plt.ylabel('Trials')
 plt.tight_layout()
@@ -460,80 +349,58 @@ handle_fig(fig, f"spike_triggered_licks_hist", do_save=do_save)
 #%% plot d-prime of licks pre- and post-DA peak
 
 do_save = False
-D = D1
-
-group_name = 'degradation'
-group_name = 'cued reward'
-group_name = 'all'
-
-# trial_types = ('background',); trial_period = None
+days = np.arange(10)
 trial_types = None; trial_period = 'ITI'
-# trial_types = ('go', 'go_omit'); trial_period = 'ISI'
-
-title = ''
-if trial_types is not None:
-    title += '/'.join(trial_types) + ' trials'
-if trial_period is not None:
-    if title:
-        title += ', '
-    title += f"during {trial_period}"
-
 trigger_on_licks_not_da = False
 t_for_dprime = 250
-days = np.arange(5)
-mouse_names = np.unique([session[0]['mouse'] for session in D1.Sessions])
-# mouse_names = [mouse_names[7]]
-all_dprimes = []
-all_licks_pre = []
-all_licks_post = []
-for mouse_name in mouse_names:
-    if group_name == 'degradation' and '_0' not in mouse_name:
-        continue
-    elif group_name == 'cued reward' and '_C' not in mouse_name:
-        continue
-    elif group_name == 'all':
-        pass
+mouse_names = np.unique([session[0]['mouse'] for session in D.Sessions])
 
-    # get da_mean for this mouse
-    _, _, _, da_stats_mouse = get_spike_triggered_licks(D, mouse_name=mouse_name, trial_types=trial_types, trial_period=trial_period, day_indices=days, trigger_on_licks_not_da=trigger_on_licks_not_da)
-    # da_stats_mouse = {'da_mean': 0.0, 'da_std': 1.0}
-    # da_stats_mouse = None
+for group_name in ['degradation', 'cued reward']:
+    all_dprimes = []
+    all_licks_pre = []
+    all_licks_post = []
+    for mouse_name in mouse_names:
+        if group_name == 'degradation' and '_0' not in mouse_name:
+            continue
+        elif group_name == 'cued reward' and '_C' not in mouse_name:
+            continue
+        elif group_name == 'all':
+            pass
 
-    dps = []
-    for day in days:
-        dp, licks_pre, licks_post, da_stats = dprime_licks(D, mouse_name=mouse_name, trial_types=trial_types, trial_period=trial_period, day=day, t_for_dprime=t_for_dprime, da_stats=da_stats_mouse,  trigger_on_licks_not_da=trigger_on_licks_not_da)
-        # if show_da_mean:
-        #     dp = da_stats['da_mean']
-        all_licks_pre.append(licks_pre)
-        all_licks_post.append(licks_post)
-        dps.append(dp)
-    dps = np.array(dps)
-    all_dprimes.append(dps)
+        # get da_mean for this mouse
+        _, _, _, da_stats_mouse = get_spike_triggered_licks(D, mouse_name=mouse_name, trial_types=trial_types, trial_period=trial_period, day_indices=days, trigger_on_licks_not_da=trigger_on_licks_not_da)
+        # da_stats_mouse = None
 
-print(f"{group_name} mice, days {days[0]}-{days[-1]}")
-all_dprimes = np.vstack(all_dprimes)
-all_dps = all_dprimes.flatten(); all_dps = all_dps[~np.isnan(all_dps)]
-stats, pval = scipy.stats.wilcoxon(all_dps)
-print(f"Wilcoxon ranksum test: statistic={stats:.3f}, p-value={pval:.3f}")
+        dps = []
+        for day in days:
+            dp, licks_pre, licks_post, da_stats = dprime_licks(D, mouse_name=mouse_name, trial_types=trial_types, trial_period=trial_period, day=day, t_for_dprime=t_for_dprime, da_stats=da_stats_mouse,  trigger_on_licks_not_da=trigger_on_licks_not_da)
+            all_licks_pre.append(licks_pre)
+            all_licks_post.append(licks_post)
+            dps.append(dp)
+        dps = np.array(dps)
+        all_dprimes.append(dps)
 
-fig = plt.figure()
-plt.plot(days+1, all_dprimes.T, '.-', color='k', alpha=0.5, linewidth=1, markersize=4)
+    print(f"{group_name} mice, days {days[0]}-{days[-1]}")
+    all_dprimes = np.vstack(all_dprimes)
+    all_dps = all_dprimes.flatten(); all_dps = all_dps[~np.isnan(all_dps)]
+    stats, pval = scipy.stats.wilcoxon(all_dps)
+    print(f"Wilcoxon ranksum test: statistic={stats:.3f}, p-value={pval:.3f}")
 
-mus = np.nanmean(all_dprimes, axis=0)
-ses = np.nanstd(all_dprimes, axis=0) / np.sqrt(np.sum(~np.isnan(all_dprimes), axis=0))
-plt.plot(days+1, mus, 'k-', linewidth=2)
-plt.fill_between(days+1, mus - ses, mus + ses, color='k', alpha=0.2, zorder=-1, linewidth=0)
+    fig = plt.figure()
+    plt.plot(days+1, all_dprimes.T, '.-', color='k', alpha=0.5, linewidth=1, markersize=4)
 
-plt.axhline(0, color='k', linestyle='--', alpha=0.5, zorder=-1)
-plt.xlabel('Day')
-if trigger_on_licks_not_da:
-    plt.ylabel("d' of DA pre-lick peak vs post-DA peak")
-else:
-    plt.ylabel("d' of licks after vs. before DA peak")
-# plt.title(title)
-plt.ylim([-1.11,1.11])
-# if not show_da_mean:
-#     plt.ylim([-1.01,2.01])
-# else:
-#     plt.ylabel('DA mean (z-score)')
-handle_fig(fig, f"spike_triggered_licks_dprimes_{group_name}", do_save=do_save)
+    mus = np.nanmean(all_dprimes, axis=0)
+    ses = np.nanstd(all_dprimes, axis=0) / np.sqrt(np.sum(~np.isnan(all_dprimes), axis=0))
+    plt.plot(days+1, mus, 'k-', linewidth=2)
+    plt.fill_between(days+1, mus - ses, mus + ses, color='k', alpha=0.2, zorder=-1, linewidth=0)
+
+    plt.axhline(0, color='k', linestyle='--', alpha=0.5, zorder=-1)
+    plt.xlabel('Day')
+    if trigger_on_licks_not_da:
+        plt.ylabel("d' of DA pre-lick peak vs post-DA peak")
+    else:
+        plt.ylabel("d' of licks after vs. before DA peak")
+    plt.ylim([-1.11,1.11])
+    handle_fig(fig, f"spike_triggered_licks_dprimes_{group_name}", do_save=do_save)
+
+# %%
