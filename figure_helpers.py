@@ -3,10 +3,9 @@
 import os.path
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.model_selection import cross_val_score, KFold
-from regression_model import zscore_if_possible, get_data_per_session, fit_logistic_models
+from regression_model import zscore_if_possible, get_data_per_session
 import scipy.stats
 
 import matplotlib as mpl
@@ -110,8 +109,6 @@ def plot_example_trial(trial, odor_onset=None, reward_onset=None, ymin=-1.5, yma
 
     yl = [ymin, ymax]
     if odor_onset is not None:
-        # rect = patches.Rectangle((odor_onset, yl[0]), 1, yl[1]-yl[0], linewidth=1, edgecolor=None, facecolor='k', alpha=0.1)
-        # plt.gca().add_patch(rect)
         plt.plot(odor_onset*np.ones(2), yl, 'k--', alpha=0.5, linewidth=1, zorder=-1)
     if reward_onset is not None:
         plt.plot(reward_onset*np.ones(2), yl, 'k--', alpha=0.5, linewidth=1, zorder=-1)
@@ -325,8 +322,6 @@ def plot_trial_average_per_group(all_data, group_key='CS_DA_peak', ykey=None, pe
                 plt.plot((reward_onset - odor_onset)*np.ones(2), yl, 'k--', alpha=0.5, linewidth=1, zorder=-1)
             if odor_onset is not None:
                 plt.plot((odor_onset - odor_onset)*np.ones(2), yl, 'k--', alpha=0.5, linewidth=1, zorder=-1)
-                # rect = patches.Rectangle((odor_onset, yl[0]), 1, yl[1]-yl[0], linewidth=1, edgecolor=None, facecolor='k', alpha=0.1)
-                # plt.gca().add_patch(rect)
     plt.tight_layout()
     return fig, vals
 
