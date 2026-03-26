@@ -15,8 +15,6 @@ mpl.rcParams['axes.spines.top'] = False
 mpl.rcParams['figure.dpi'] = 300
 mpl.rcParams['figure.figsize'] = (3,3)
 
-# DA_color = [0.5, 0.2, 0.9]
-# DA_color = '#4E9E7C'
 DA_color = 'black'
 cond_clrs = {0: '#4E9E7C', 1: '#E88355', 2: '#7571AE', 3: 'gray'}
 
@@ -408,68 +406,6 @@ def moving_average(data_set, K):
     weights = np.ones(K) / K
     return np.convolve(data_set, weights, mode='valid')
 
-# def get_time_series_over_sessions_0(all_data, key1, key2, mouse_names, day_indices=None, trial_types=None):
-
-#     mse_lkp = {v: i for i, v in enumerate(mouse_names)}
-#     trial_counts = {}
-
-#     def trial_keeper(item):
-#         keep = True
-#         if trial_types is not None and item['trial_type'] not in trial_types:
-#             keep = False
-#         elif day_indices is not None and item['day_index'] not in day_indices:
-#             keep = False
-#         return keep
-
-#     all_vals = []
-#     for citems in all_data:
-#         items = [item for item in citems if trial_keeper(item)]
-#         if len(items) == 0:
-#             continue
-
-#         assert len(np.unique(np.vstack([(mse_lkp[item['mouse']], item['day_index']) for item in items]), axis=0)) == 1
-#         trial_counts[(mse_lkp[items[0]['mouse']], items[0]['day_index'])] = len(items)
-
-#         trial_offset = 0
-#         for d in range(items[0]['day_index']):
-#             ckey = (mse_lkp[items[0]['mouse']], d)
-#             trial_offset += trial_counts.get(ckey, 0)
-
-#         vals = [(mse_lkp[item['mouse']], item['day_index'], trial_offset+i, item[key1], item[key2]) for i, item in enumerate(items)]
-#         all_vals.extend(vals)
-#     all_vals = np.vstack(all_vals)
-#     return all_vals
-
-# def plot_time_series_over_days(all_vals, y1lbl, y2lbl, clr=DA_color):
-#     fig = plt.figure()
-#     ax1 = plt.gca()
-#     ax1.set_ylabel(y1lbl)
-#     ax2 = ax1.twinx()
-#     ax2.set_ylabel(y2lbl, color='r')
-#     ax2.tick_params(axis='y', labelcolor='r')
-
-#     xs = all_vals[:,1]
-#     xsa = np.unique(xs)
-#     for x in xsa:
-#         vs = all_vals[xs == x,-2]
-#         if len(vs) > 0:
-#             mu = np.nanmean(vs)
-#             ns = (~np.isnan(vs)).sum()
-#             se = np.nanstd(vs) / np.sqrt(ns)
-#             ax1.plot(x, mu, 'ko')
-#             ax1.plot(x*np.ones(2), mu + se*np.array([-1,1]), 'k-', zorder=-1)
-
-#         vs = all_vals[xs == x,-1]
-#         if len(vs) > 0:
-#             mu = np.nanmean(vs)
-#             ns = (~np.isnan(vs)).sum()
-#             se = np.nanstd(vs) / np.sqrt(ns)
-#             ax2.plot(x, mu, 'ro')
-#             ax2.plot(x*np.ones(2), mu + se*np.array([-1,1]), '-', color=clr, zorder=-1)
-#     ax1.set_xlabel('# days')
-#     # plt.ylabel('DA')
-#     return fig
-
 def get_time_series_over_sessions(Sessions, da_window, lick_window, mouse_names, day_indices=None, trial_types=None, trial_type_key='trial_type', subtract_baseline_spikes=False, use_mean_spikes=False, bin_size=50, day_offset=0):
     trial_counts = {}
     lick_to_hz = 1000 / bin_size
@@ -715,88 +651,5 @@ def plot_correlations(Rhos, ylim=None, ylbl="Correlation between CS DA and licki
     if ylim is not None:
         plt.ylim(ylim)
     plt.ylabel(ylbl)
-    plt.tight_layout()
-    return fig
-
-#%% linear model of DA and licking (for QianBurrell2024)
-
-def plot_linear_model_predictions(results, bin_size=50, xlim=None, ylim=None):
-    if len(results) > 1:
-        nrows = np.ceil(np.sqrt(len(results))).astype(int)
-        ncols = np.ceil(len(results) / nrows).astype(int)
-        fig = plt.figure(figsize=(3*nrows,3*ncols))
-    else:
-        fig = plt.figure()
-    lick_to_hz = 1000 / bin_size
-    inds = np.argsort([result['name'] for result in results])
-    for i, ind in enumerate(inds):
-        result = results[i]
-        if len(results) > 1:
-            plt.subplot(nrows, ncols, i+1)
-        plt.plot(result['X'], lick_to_hz * result['y'], 'k.', markersize=3)
-        
-        xs = np.linspace(result['X'].min(), result['X'].max()).reshape(-1,1)
-        yhats = result['model'].predict(zscore_if_possible(xs))
-        plt.plot(xs, lick_to_hz * yhats, 'k-', zorder=-1)
-
-        plt.xlabel('DA at odor onset (a.u.)')
-        plt.ylabel('Anticipatory lick rate (Hz)')
-        if xlim is not None:
-            plt.xlim(xlim)
-        if ylim is not None:
-            plt.ylim(ylim)
-        
-        if len(results) > 1:
-            plt.title(f"{result['name']} ($R^2$ = {result['rsq_mu']:0.3f})")
-        else:
-            plt.title(f"Example experiment ($R^2$ = {result['rsq_mu']:0.3f})")
-    plt.tight_layout()
-    prefix = 'Median' if len(results) > 1 else 'Example experiment'
-    rsq = np.median([result['rsq_mu'] for result in results])
-    print(f"{prefix} R^2: {rsq:0.3f}")
-    return fig
-
-#%% logistic model of DA and licking (for QianBurrell2024)
-
-def plot_logistic_models_per_animal(pts, Scores, linestyles=('-', '--')):
-    clrs = {0: '#4E9E7C', 1: '#E88355', 2: '#7571AE', 3: 'gray'}
-    mkrs = {0: 'o', 1: 'v', 2: 's'}
-
-    nrows = 4; ncols = 4
-    fig = plt.figure(figsize=(2.75*ncols,2.25*nrows))
-    for n, (mouse_name, xs) in enumerate(pts.items()):
-        c = n+1
-        if c >= 4:
-            c += 1 # we want the 4th panel blank
-        if c >= 8:
-            c += 1 # we also want the 8th panel blank
-        plt.subplot(nrows, ncols, c)
-        for trial_type in np.unique(xs[:,2]):
-            for day_index in np.unique(xs[:,0]):
-                ix = (xs[:,0]==day_index) & (xs[:,2] == trial_type)
-                if ix.sum() == 0:
-                    continue
-                if day_index <= 4:
-                    m = 0 # conditioning
-                elif day_index <= 9:
-                    if '_C' in mouse_name:
-                        m = 2
-                    else:
-                        m = 1
-                else: # recovery
-                    m = 3
-
-                x = xs[ix,-2].mean()
-                y = xs[ix,-1].mean()
-                clr = clrs[int(m)]
-                mkr = mkrs[trial_type]
-                plt.plot(x, y, mkr, linewidth=0, markeredgecolor=clr, markerfacecolor=clr, alpha=0.8, markersize=3)
-        
-        for i, scores in enumerate(Scores):
-            plt.plot(scores[mouse_name]['X_range'], scores[mouse_name]['yhat'], linestyles[i], zorder=-4, linewidth=1, color='k')
-        plt.xlabel('DA at CS onset (a.u.)')
-        plt.ylabel('P(anticipatory licking)')
-        plt.title(f"{mouse_name}")
-        # plt.title(f"{mouse_name}, AUC={scores[mouse_name]['auc_mean']:0.2f}")
     plt.tight_layout()
     return fig

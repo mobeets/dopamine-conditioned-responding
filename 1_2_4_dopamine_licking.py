@@ -2,7 +2,7 @@
 
 import numpy as np
 from data_loaders import QianBurrell2024
-from figure_helpers import plt, plot_trial_average_per_group, plot_trial_average_per_group_rel_to_first_lick, get_time_series_over_sessions, plot_average_outcome_per_session, plot_correlations, plot_example_trial, handle_fig
+from figure_helpers import plt, plot_trial_average_per_group, plot_trial_average_per_group_rel_to_first_lick, get_time_series_over_sessions, plot_time_series_over_trials, plot_time_series_over_trials_per_animal, plot_average_outcome_per_session, plot_correlations, plot_example_trial, handle_fig
 from scipy.stats import ranksums
 
 #%% load sessions

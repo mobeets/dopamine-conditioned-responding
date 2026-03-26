@@ -1,6 +1,14 @@
-#%%
+#%% imports
 
 from figure_helpers import cond_clrs
+from regression_model import cv_scores
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import log_loss
+import statsmodels.api as sm
+import scipy.stats
+
+#%%
+
 def plot_licks_and_da(xs, licks_around_peak, da_around_peak, clr_licks='k', clr_da=(0.6,0.2,0.2), title='', ylims=None):
     """
     Plot licks and DA signal around DA peak.
@@ -451,8 +459,6 @@ handle_fig(fig, f"spike_triggered_licks_dose", do_save=do_save)
 
 #%% plot raster of licks
 
-import scipy.stats
-
 do_save = False
 D = D1
 t_for_dprime = 250
@@ -709,11 +715,6 @@ def logistic_X_to_y(Xc, y, t_offset=0, n_window=1, N_min=None, do_sum=False):
     return model, lls
 
 #%% fit logistic regression to predict licks from DA, and compare to d'
-
-from regression_model import cv_scores
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import log_loss
-import statsmodels.api as sm
 
 D = D1#_raw
 

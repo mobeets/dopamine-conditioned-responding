@@ -2,12 +2,14 @@
 
 import numpy as np
 from numpy.random import default_rng
-from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.linear_model import LinearRegression, Ridge, LogisticRegression
 from sklearn.model_selection import cross_val_score, KFold
-from sklearn.metrics import mean_squared_error
 from td import create_experiment, create_experiment_multiple_cues
 from figure_helpers import plt, handle_fig
 from regression_model import zscore_if_possible
+from scipy.stats import norm
+from regression_model import get_data_per_session
+from tqdm import tqdm
 
 #%% experiment and agent helper functions
 
@@ -406,8 +408,6 @@ plt.plot(X[y==-1], '.'), plt.plot(X[y==1], '.'), plt.ylim([-1,1])
 print('mean phenotype in each group: ', X[y==-1].mean(), X[y==1].mean())
 
 # fit cross-validated logistic regression
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import cross_val_score, KFold
 model = LogisticRegression()
 kf = KFold(n_splits=5, shuffle=True, random_state=123)
 scores = []
@@ -424,7 +424,6 @@ W = model.coef_
 print(f"Logistic regression accuracy: {np.mean(scores):.3f} ± {np.std(scores):.3f}")
 
 # print d-prime of X[y==1] vs X[y==-1] on bootstrapped samples
-from scipy.stats import norm
 nboot = 1000
 dprimes = []
 rng = default_rng(123)
@@ -460,8 +459,6 @@ def shuffle_trials(y, y_ref):
     return y_shuffled
 
 #%% fit regression models of CS DA history -> anticipatory licking
-
-from regression_model import get_data_per_session
 
 do_save = False
 conds = [
@@ -593,7 +590,6 @@ handle_fig(fig, f"regression_weights_all_exps", do_save=do_save)
 
 #%% simulate agents without linear model
 
-from tqdm import tqdm
 def simulate_agents(nruns, data_keys, all_run_params, agent_names=None):
     clrs = plt.rcParams['axes.prop_cycle'].by_key()['color']
     fig = plt.figure(figsize=(3*len(data_keys),3))
@@ -674,7 +670,6 @@ handle_fig(fig, f"regression_weights_agents_nomdl_with_noise" if add_rep_noise e
 rhos_1 = Rhos[0][:,-1]
 rhos_2 = Rhos[1][:,-1]
 # print d-prime of rhos_1 vs rhos_2 on bootstrapped samples
-from scipy.stats import norm
 nboot = 1000
 dprimes = []
 rng = default_rng(123)

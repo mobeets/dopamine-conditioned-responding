@@ -1,32 +1,6 @@
 import numpy as np
 from numpy.random import default_rng
 
-def TD(Z, R, gamma, alpha=0.1, return_all=False, w_memory=1, eps=0.0, seed=123):
-    Zcur = Z[:-1]
-    Znext = Z[1:]
-    Rc = R[:-1]
-    w = np.zeros(Z.shape[1])
-    ws = [w.copy()]
-    rpe = np.nan
-    data = []
-
-    rng = default_rng(seed)
-    nse = eps * rng.random(size=len(Z))
-
-    for z, z_next, r in zip(Zcur, Znext, Rc):
-        if return_all:
-            # rpe is not known until next time step, so we return the old one
-            cdata = (z, r, w.copy(), z.dot(w), rpe)
-            data.append(cdata)
-        
-        rpe = r + gamma*z_next.dot(w) - z.dot(w) + nse[t]
-        w = w_memory*w + alpha*rpe*z
-        if r > 0:
-            ws.append(w.copy())
-    if return_all:
-        return ws, data
-    return ws
-
 def make_trial(iti, isi, iti_min, add_bias=True):
     """
     columns: ISIs, ITI_MINs, ITI
