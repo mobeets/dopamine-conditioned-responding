@@ -7,7 +7,7 @@ from figure_helpers import handle_fig
 
 #%% load sessions
 
-D1 = D # QianBurrell2024()
+D1 = QianBurrell2024()
 D2 = Eshel2016(key='Variable-Expectation')
 D3 = Matsumoto2016()
 D4 = HyungGoo2020()
