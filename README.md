@@ -19,4 +19,4 @@
 - Figure 6: `uv run 6_spike_triggered_licks.py`
 - Figure 7: `uv run 7_causal_dopamine_perts.py`
 
-When `do_save = True` within each script, figure panels will be saved to `figures/`.
+All generated figure panels are saved to `figures/`.

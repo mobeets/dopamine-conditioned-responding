@@ -17,19 +17,6 @@ handle_fig(figs[0], 'qb_avg_DA', do_save=do_save)
 handle_fig(figs[1], 'qb_avg_lick', do_save=do_save)
 handle_fig(figs[2], 'qb_value', do_save=do_save)
 
-#%% show example trials (DA and licking)
-
-do_save = True
-trials = D.Sessions[23]
-trials = [trial for trial in trials if trial['trial_type']=='go']
-ctrials = np.vstack([(i, trial['CS_DA_peak'], trial['n_anticipatory_licks']) for i,trial in enumerate(trials) if trial['trial_type']=='go'])
-inds = ctrials[np.argsort(ctrials[:,1]),0].astype(int)
-
-fig = plot_example_trial(trials[inds[-1]], D.odor_onset, D.reward_onset)
-handle_fig(fig, 'qb_example_trial_1', do_save=do_save)
-fig = plot_example_trial(trials[inds[10]], D.odor_onset, D.reward_onset)
-handle_fig(fig, 'qb_example_trial_2', do_save=do_save)
-
 #%% show scatter of DA at CS vs anticipatory licks, for example session
 
 do_save = True
@@ -133,9 +120,6 @@ v2s = np.nanmean(v2[:,x2 > 0], axis=1)
 stat, p_value = ranksums(v1s[~np.isnan(v1s)], v2s[~np.isnan(v2s)], alternative='less')
 print(f"Anticipatory lick rate (high DA > low DA): Wilcoxon rank-sum test: statistic={stat:0.3f}, p-value={p_value}")
 
-# fig = plot_trial_average_per_group_rel_to_first_lick(D.Sessions, trial_types=trial_types, day_indices=day_indices, odor_onset=D.odor_onset, reward_onset=D.reward_onset)
-# handle_fig(fig, 'qb_lickrate_psth_mean')
-
 #%% anticip. lick rate and DA at CS onset, on last day
 
 do_save = True
@@ -167,15 +151,6 @@ da_window = D.da_bin_window
 lick_window = D.lick_bin_windows['A']
 
 all_vals, ylbls = get_time_series_over_sessions(D.Sessions, da_window, lick_window, D.mouse_names, day_indices=day_indices, trial_types=trial_types, subtract_baseline_spikes=False, use_mean_spikes=True)
-
-# grand average
-fig = plot_time_series_over_trials(all_vals, ylbls)
-handle_fig(fig, 'qb_lickrate_and_da_over_trials', do_save=do_save)
-
-# example session
-mouse_index = 0
-fig = plot_time_series_over_trials(all_vals[all_vals[:,0] == mouse_index], ylbls)
-handle_fig(fig, 'qb_lickrate_and_da_over_trials_example_v0', do_save=do_save)
 
 # now get data with gaps between days, for clarity when showing individual sessions
 gap_vals, ylbls = get_time_series_over_sessions(D.Sessions, da_window, lick_window, D.mouse_names, day_indices=day_indices, trial_types=trial_types, subtract_baseline_spikes=False, use_mean_spikes=True, day_offset=10)

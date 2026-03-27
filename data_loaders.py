@@ -54,8 +54,8 @@ class QianBurrell2024:
         self.exp_name = 'Qian & Burrell et al., 2025'
         # n.b. this is data from just one fiber, but there were more in other parts of VS
         self.datadir = os.path.join(datadir, 'QianBurrell2025')
-        self.dfl = pd.read_parquet(os.path.join(self.datadir, 'data/lick_data_for_jay.parquet'))
-        self.dfd = pd.read_parquet(os.path.join(self.datadir, 'data/photo_data_for_jay.parquet'))
+        self.dfl = pd.read_parquet(os.path.join(self.datadir, 'lick_data.parquet'))
+        self.dfd = pd.read_parquet(os.path.join(self.datadir, 'photo_data.parquet'))
         
         self.odor_onset = 2.01
         self.sampling_rate = 20
@@ -228,6 +228,8 @@ class Eshel2016:
         self.exp_name = 'Eshel et al., 2016'
         self.datadir = os.path.join(datadir, 'Eshel2016')
         self.sessionfiles = glob.glob(os.path.join(self.datadir, self.key, '*.mat'))
+        if not self.sessionfiles:
+            return None
         self.bin_size = 50
         self.t_pre = 1000
         self.t_post = 4000
@@ -358,6 +360,8 @@ class Matsumoto2016:
         self.datadir = os.path.join(datadir, 'Matsumoto2016')
         self.key = key # HighR, HighR2, LowR, Mixed
         self.sessionfiles = glob.glob(os.path.join(self.datadir, '*' + self.key + '.mat'))
+        if not self.sessionfiles:
+            return None
         self.bin_size = 50
         self.t_pre = 1000
         self.t_post = 4000
@@ -461,7 +465,10 @@ class Kim2020:
     def __init__(self, datadir=DATADIR):
         self.exp_name = 'Kim et al., 2020'
         self.datadir = os.path.join(datadir, 'Kim2020')
-        self.f = h5py.File(os.path.join(self.datadir, 'DA_SU_ODOR_NEW.h5'))
+        filename = os.path.join(self.datadir, 'DA_SU_ODOR_NEW.h5')
+        if not os.path.exists(filename):
+            return None
+        self.f = h5py.File(filename)
 
         self.t_pre = 1500
         self.t_post = 5000
@@ -606,6 +613,8 @@ class Amo2024:
         self.key = key
 
         self.sessionfiles = glob.glob(os.path.join(self.datadir, self.key + '_*.mat'))
+        if not self.sessionfiles:
+            return None
         self.bin_size = 50
         self.t_pre = 1000
         self.t_post = 6000

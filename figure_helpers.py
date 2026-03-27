@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.model_selection import cross_val_score, KFold
-from regression_model import zscore_if_possible, get_data_per_session
+from data_helpers import zscore_if_possible, get_data_per_session
 import scipy.stats
 
 import matplotlib as mpl

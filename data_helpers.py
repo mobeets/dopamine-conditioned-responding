@@ -2,6 +2,7 @@
 
 import numpy as np
 from sklearn.model_selection import KFold
+from numpy.random import default_rng
 
 #%% helper functions
 
@@ -68,11 +69,11 @@ def build_design_matrix(X, K):
         Z[t - K + 1, :] = window.T.flatten()
     return Z
 
-def shuffle_trials(y, y_ref):
+def shuffle_trials(y, y_ref, seed=123):
     """
     shuffle trials in y, preserving NaN positions from y_ref
     """
-    rng = default_rng(123)
+    rng = default_rng(seed)
     y_shuffled = y.copy()
     ix_valid = ~np.isnan(y_ref)
     y_valid = y_shuffled[ix_valid]
