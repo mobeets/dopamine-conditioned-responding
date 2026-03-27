@@ -2,7 +2,7 @@
 
 import numpy as np
 from data_loaders import QianBurrell2024, Eshel2016, Matsumoto2016, Kim2020, Amo2024
-from regression_model import get_feature_from_trials, get_data_per_session, zscore_if_possible, build_design_matrix, shuffle_trials
+from data_helpers import get_feature_from_trials, get_data_per_session, zscore_if_possible, build_design_matrix, shuffle_trials
 from figure_helpers import handle_fig, plot_correlations
 
 #%% load sessions
@@ -16,7 +16,7 @@ D5b = Amo2024(key='CC_GCaMP')
 
 #%% compare average anticipatory licking on low vs high DA trials
 
-do_save = False
+do_save = True
 percentiles = (25,75)
 
 conds = [
@@ -74,7 +74,7 @@ handle_fig(fig, 'delta_licking_all_exps', do_save=do_save)
 
 #%% get correlations between licking and CS DA history in empirical data
 
-do_save = False
+do_save = True
 conds = [
     {'D': D2, 'trial_type': 'A', 'title': D2.exp_name},
     {'D': D3, 'trial_type': 'A', 'title': D3.exp_name},

@@ -11,7 +11,7 @@ D = QianBurrell2024()
 
 #%% avg dopamine and anticipatory lick rates in Cond, Deg, and CuedRew (last day, Odor A)
 
-do_save = False
+do_save = True
 figs = plot_average_outcome_per_session(D, colors=['k','k','k'])
 handle_fig(figs[0], 'qb_avg_DA', do_save=do_save)
 handle_fig(figs[1], 'qb_avg_lick', do_save=do_save)
@@ -19,7 +19,7 @@ handle_fig(figs[2], 'qb_value', do_save=do_save)
 
 #%% show example trials (DA and licking)
 
-do_save = False
+do_save = True
 trials = D.Sessions[23]
 trials = [trial for trial in trials if trial['trial_type']=='go']
 ctrials = np.vstack([(i, trial['CS_DA_peak'], trial['n_anticipatory_licks']) for i,trial in enumerate(trials) if trial['trial_type']=='go'])
@@ -32,7 +32,7 @@ handle_fig(fig, 'qb_example_trial_2', do_save=do_save)
 
 #%% show scatter of DA at CS vs anticipatory licks, for example session
 
-do_save = False
+do_save = True
 high_da_color = 'darkred'
 low_da_color = '#ff9999' # light red
 trial_types = ('go', 'go_omit')
@@ -89,7 +89,7 @@ handle_fig(fig, 'qb_example_trial_2', do_save=do_save)
 #%% avg DA and lick rate during trial, split by DA quartile
 # last day of Cond, Odor A
 
-do_save = False
+do_save = True
 trial_types = ('go', 'go_omit')
 day_indices = (4,)
 group_key = 'CS_DA_peak'
@@ -116,7 +116,7 @@ print(f"Time of first anticipatory lick (low DA < high DA): Wilcoxon rank-sum te
 #%% lick rate, aligned to first anticipatory lick
 # last day of Cond, Odor A
 
-do_save = False
+do_save = True
 trial_types = ('go', 'go_omit')
 day_indices = (4,)
 group_key = 'CS_DA_peak'
@@ -138,7 +138,7 @@ print(f"Anticipatory lick rate (high DA > low DA): Wilcoxon rank-sum test: stati
 
 #%% anticip. lick rate and DA at CS onset, on last day
 
-do_save = False
+do_save = True
 trial_types = ('go', 'go_omit')
 day_indices = [4]
 da_window = D.da_bin_window
@@ -160,7 +160,7 @@ handle_fig(fig, 'qb_correlations_lastday', do_save=do_save)
 #%% anticip. lick rate and DA at CS onset, over days/trials
 # Cond, Odor A
 
-do_save = False
+do_save = True
 trial_types = ('go', 'go_omit')
 day_indices = np.arange(5)
 da_window = D.da_bin_window

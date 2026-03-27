@@ -113,7 +113,7 @@ for seed in seeds:
 
 #%% plot Lee 2020 results for blockwise perturbations
 
-do_save = False
+do_save = True
 
 mode_names = {'CS+': 'Control', 'CS+ (cue inhibition)': 'Cue Inhibition', 'CS+ (rew. inhibition)': 'Reward Inhib.', 'CS+ (cue inhibition*)': 'Cue Inhib.*'}
 for model in models:
@@ -142,7 +142,7 @@ for model in models:
 
 #%% plot Lee 2020 results on random trials
 
-do_save = False
+do_save = True
 
 for model in models:
     fig = plt.figure(figsize=(1.5,2.5))
@@ -252,7 +252,7 @@ for seed in seeds:
 
 #%% plot Morrens 2020 results for blockwise perturbations
 
-do_save = False
+do_save = True
 
 mode_names = {'CS+': 'CS+', 'CS–': 'CS–', 'CS+ (cue stim)': 'CS+ Excitation', 'CS– (cue stim)': 'CS– Excitation'}
 for model in models:

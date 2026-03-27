@@ -4,7 +4,7 @@ import numpy as np
 import scipy.stats
 from data_loaders import QianBurrell2024
 from figure_helpers import plt, handle_fig
-from regression_model import zscore_if_possible
+from data_helpers import zscore_if_possible
 
 #%% load sessions
 
@@ -253,7 +253,7 @@ def dprime_licks(D, mouse_name=None, trial_types=None, trial_period=None, day=No
 
 #%% plot example trial of licking and DA during ITI
 
-do_save = False
+do_save = True
 
 trial_types = None; trial_period = 'ITI'
 clr_da = 'red'
@@ -280,7 +280,7 @@ handle_fig(fig, f"spike_triggered_licks_example_trial", do_save=do_save)
 
 #%% spike-triggered average of licking relative to DA transients
 
-do_save = False
+do_save = True
 trial_types = None; trial_period = 'ITI'
 block_name = 'conditioning'
 day_indices = np.arange(5)
@@ -294,7 +294,7 @@ handle_fig(fig, f"spike_triggered_licks_{block_name}", do_save=do_save)
 
 #%% spike-triggered average of licking relative to DA transients
 
-do_save = False
+do_save = True
 
 trial_types = None; trial_period = 'ITI'
 day_indices = np.arange(5)
@@ -320,7 +320,7 @@ handle_fig(fig, f"spike_triggered_licks_dose", do_save=do_save)
 
 #%% plot raster of licks
 
-do_save = False
+do_save = True
 t_for_dprime = 250
 trial_types = None; trial_period = 'ITI'
 day = 0
@@ -348,7 +348,7 @@ handle_fig(fig, f"spike_triggered_licks_hist", do_save=do_save)
 
 #%% plot d-prime of licks pre- and post-DA peak
 
-do_save = False
+do_save = True
 days = np.arange(10)
 trial_types = None; trial_period = 'ITI'
 trigger_on_licks_not_da = False

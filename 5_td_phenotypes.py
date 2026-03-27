@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from td import create_experiment, TD
 from figure_helpers import plt, handle_fig
-from regression_model import build_design_matrix
+from data_helpers import build_design_matrix
 
 #%% experiment and agent helper functions
 
@@ -150,72 +150,72 @@ def generate_agent_data(add_rep_noise, nruns=500, do_overwrite=False, try_to_loa
 
 #%% plot correlation between licking and CS DA history
 
-do_save = False
-add_rep_noise = True
+do_save = True
 history_length = 5
 data_keys = ('rpes',)
 
-results = generate_agent_data(add_rep_noise)
+for add_rep_noise in [False, True]:
+    results = generate_agent_data(add_rep_noise)
 
-# Calculate correlations between licking and CS DA at different lags
-Rhos = [[], []]
-for result in results:
-    data = result['data']
-    X = np.column_stack([data[key] for key in data_keys]).copy() # shape (T, D)
-    Z_all = build_design_matrix(X, history_length)
-    ix = np.any(np.isnan(Z_all), axis=1)
+    # Calculate correlations between licking and CS DA at different lags
+    Rhos = [[], []]
+    for result in results:
+        data = result['data']
+        X = np.column_stack([data[key] for key in data_keys]).copy() # shape (T, D)
+        Z_all = build_design_matrix(X, history_length)
+        ix = np.any(np.isnan(Z_all), axis=1)
 
-    for i, (agent_name, agent) in enumerate(result['agents'].items()):
-        y = agent['licks'].copy()
-        y_target = y[history_length-1:] # shape (T-K+1,)
-        Z = Z_all[~ix].copy()
-        y_target = y_target[~ix]
-        rhos = np.array([np.corrcoef(Z[:,k], y_target)[0,1] for k in range(Z.shape[1])])
-        Rhos[i].append(rhos)
-Rhos = [np.vstack(r) for r in Rhos]
+        for i, (agent_name, agent) in enumerate(result['agents'].items()):
+            y = agent['licks'].copy()
+            y_target = y[history_length-1:] # shape (T-K+1,)
+            Z = Z_all[~ix].copy()
+            y_target = y_target[~ix]
+            rhos = np.array([np.corrcoef(Z[:,k], y_target)[0,1] for k in range(Z.shape[1])])
+            Rhos[i].append(rhos)
+    Rhos = [np.vstack(r) for r in Rhos]
 
-def plot_quantile_band(x, Y, color='C0', label=None):
-    for q in [10,20,30,40]:
-        qlb, qub = np.percentile(Y, [q, 100-q], axis=0)
-        plt.fill_between(x, qlb, qub, color=color, alpha=0.2, linewidth=0)
-    plt.plot(x, np.median(Y, axis=0), color=color, linewidth=2, label=label)
+    def plot_quantile_band(x, Y, color='C0', label=None):
+        for q in [10,20,30,40]:
+            qlb, qub = np.percentile(Y, [q, 100-q], axis=0)
+            plt.fill_between(x, qlb, qub, color=color, alpha=0.2, linewidth=0)
+        plt.plot(x, np.median(Y, axis=0), color=color, linewidth=2, label=label)
 
-# Plot mean correlations per agent
-nx = history_length
-fig = plt.figure(figsize=(3,3))
-x = np.arange(nx)[::-1]
-plot_quantile_band(x, Rhos[0], 'C0', label='H1')
-plot_quantile_band(x, Rhos[1], '#3BAA58', label='H2')
-plt.xlabel('# Trials back ($\\tau$)')
-plt.ylabel('Corr. between Licks(t) and CS RPE(t-$\\tau$)')
-plt.xticks(np.arange(0, nx, 1))
-plt.legend(fontsize=8)
-plt.tight_layout()
-plt.xlim([-0.1, nx-0.9])
-plt.ylim([-0.05, 0.65])
-plt.plot(plt.xlim(), [0, 0], 'k--', alpha=0.5, zorder=-1)
-handle_fig(fig, f"regression_weights_agents_nomdl_with_noise" if add_rep_noise else "regression_weights_agents_nomdl", do_save=do_save)
+    # Plot mean correlations per agent
+    nx = history_length
+    fig = plt.figure(figsize=(3,3))
+    x = np.arange(nx)[::-1]
+    plot_quantile_band(x, Rhos[0], 'C0', label='H1')
+    plot_quantile_band(x, Rhos[1], '#3BAA58', label='H2')
+    plt.xlabel('# Trials back ($\\tau$)')
+    plt.ylabel('Corr. between Licks(t) and CS RPE(t-$\\tau$)')
+    plt.xticks(np.arange(0, nx, 1))
+    plt.legend(fontsize=8)
+    plt.tight_layout()
+    plt.xlim([-0.1, nx-0.9])
+    plt.ylim([-0.05, 0.65])
+    plt.plot(plt.xlim(), [0, 0], 'k--', alpha=0.5, zorder=-1)
+    handle_fig(fig, f"regression_weights_agents_nomdl_with_noise" if add_rep_noise else "regression_weights_agents_nomdl", do_save=do_save)
 
-# Print d' of regression weights between agents
-rhos_1 = Rhos[0][:,-1]
-rhos_2 = Rhos[1][:,-1]
-# print d-prime of rhos_1 vs rhos_2 on bootstrapped samples
-nboot = 1000
-dprimes = []
-rng = default_rng(123)
-for i in range(nboot):
-    ix1 = rng.choice(np.arange(len(rhos_1)), size=len(rhos_1), replace=True)
-    ix2 = rng.choice(np.arange(len(rhos_2)), size=len(rhos_2), replace=True)
-    mu1 = np.mean(rhos_1[ix1])
-    mu2 = np.mean(rhos_2[ix2])
-    sd1 = np.std(rhos_1[ix1])
-    sd2 = np.std(rhos_2[ix2])
-    pooled_sd = np.sqrt((sd1**2 + sd2**2) / 2)
-    dprime = (mu1 - mu2) / pooled_sd
-    dprimes.append(dprime)
-dprimes = np.array(dprimes)
-mu_dp = np.mean(dprimes)
-se_dp = np.std(dprimes)
-ci_lower = np.percentile(dprimes, 2.5)
-ci_upper = np.percentile(dprimes, 97.5)
-print(f"d': {mu_dp:.3f} ± {se_dp:.3f}, 95% CI: [{ci_lower:.3f}, {ci_upper:.3f}]")
+    # Print d' of regression weights between agents
+    rhos_1 = Rhos[0][:,-1]
+    rhos_2 = Rhos[1][:,-1]
+    # print d-prime of rhos_1 vs rhos_2 on bootstrapped samples
+    nboot = 1000
+    dprimes = []
+    rng = default_rng(123)
+    for i in range(nboot):
+        ix1 = rng.choice(np.arange(len(rhos_1)), size=len(rhos_1), replace=True)
+        ix2 = rng.choice(np.arange(len(rhos_2)), size=len(rhos_2), replace=True)
+        mu1 = np.mean(rhos_1[ix1])
+        mu2 = np.mean(rhos_2[ix2])
+        sd1 = np.std(rhos_1[ix1])
+        sd2 = np.std(rhos_2[ix2])
+        pooled_sd = np.sqrt((sd1**2 + sd2**2) / 2)
+        dprime = (mu1 - mu2) / pooled_sd
+        dprimes.append(dprime)
+    dprimes = np.array(dprimes)
+    mu_dp = np.mean(dprimes)
+    se_dp = np.std(dprimes)
+    ci_lower = np.percentile(dprimes, 2.5)
+    ci_upper = np.percentile(dprimes, 97.5)
+    print(f"d': {mu_dp:.3f} ± {se_dp:.3f}, 95% CI: [{ci_lower:.3f}, {ci_upper:.3f}]")
