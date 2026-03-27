@@ -49,11 +49,18 @@ class QianBurrell2024:
     """
     __paper_url__ = 'https://pmc.ncbi.nlm.nih.gov/articles/PMC10871210/'
     __data_url__ = 'https://datadryad.org/dataset/doi:10.5061/dryad.mkkwh71f6'
+    __zip_url__ = 'https://drive.google.com/file/d/1fxXSRjgUev4AKNvFyAHuY10xNJLXoxcK/view?usp=drive_link'
 
     def __init__(self, datadir=DATADIR):
         self.exp_name = 'Qian & Burrell et al., 2025'
         # n.b. this is data from just one fiber, but there were more in other parts of VS
         self.datadir = os.path.join(datadir, 'QianBurrell2025')
+        if not os.path.exists(self.datadir):
+            print(f"QianBurrell2025: Data directory {self.datadir} not found. Please download from {self.__zip_url__} and place the uncompressed folder named 'QianBurrell2025' in {DATADIR=}.")
+            return None
+        if not os.path.exists(os.path.join(self.datadir, 'lick_data.parquet')) or not os.path.exists(os.path.join(self.datadir, 'photo_data.parquet')):
+            print(f"QianBurrell2025: Data files should be accessible at {self.datadir}/lick_data.parquet and {self.datadir}/photo_data.parquet. Please download from {self.__zip_url__} and place the uncompressed folder named 'QianBurrell2025' in {DATADIR=}.")
+            return None
         self.dfl = pd.read_parquet(os.path.join(self.datadir, 'lick_data.parquet'))
         self.dfd = pd.read_parquet(os.path.join(self.datadir, 'photo_data.parquet'))
         
