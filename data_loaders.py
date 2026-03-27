@@ -52,7 +52,7 @@ class QianBurrell2024:
         # n.b. this is data from just one fiber, but there were more in other parts of VS
         self.dfl = pd.read_parquet('data/lick_data_for_jay.parquet')
         self.dfd = pd.read_parquet('data/photo_data_for_jay.parquet')
-        # self.dfd = pd.read_parquet('data/photo_data_for_jay_nozscore.parquet')
+        
         self.odor_onset = 2.01
         self.sampling_rate = 20
         self.bin_size = int(1000 / self.sampling_rate)

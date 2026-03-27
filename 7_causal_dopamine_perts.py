@@ -2,61 +2,8 @@
 
 import numpy as np
 from numpy.random import default_rng
-from td import create_experiment, create_experiment_multiple_cues
+from td import create_experiment, TD
 from figure_helpers import plt, handle_fig
-
-#%% modified TD with slope/bias
-
-def TD_mod(Z, R, bs, ms, gamma, alpha=0.1, w_memory=1, isi_ind=0, eps=0.0, eps_z=0.0, seed=123):
-    """
-    Z (array: (T,K)) is representations
-    R (array: (T,)) is rewards
-    bs (array: (T,)) controls offset of DA transformation
-    ms (array: (T,)) controls slope of DA transformation
-    gamma (float) is discount factor
-    alpha (float) is learning rate
-    isi_ind (int) is indicator of cue onset where we want to save data
-    eps (float) is added noise
-    """
-    Znext_noNoise = Z[1:].copy()
-    if eps_z > 0.0:
-        rng = default_rng(seed+1)
-        Z = Z + eps_z * rng.standard_normal(size=Z.shape)
-    Zcur = Z[:-1]
-    Znext = Z[1:]
-    Rc = R[:-1]
-    bc = bs[:-1]
-    mc = ms[:-1]
-
-    w = np.zeros(Z.shape[1])
-    ws = [w.copy()]
-    rpe = np.nan
-    rpes = []
-    values = []
-    weights = []
-    rng = default_rng(seed)
-    nse = eps * rng.standard_normal(size=len(Z))
-
-    data = {'rpes': [], 'values': [], 'weights': []}
-    for t, (z, z_next, z_nn, r, b, m) in enumerate(zip(Zcur, Znext, Znext_noNoise, Rc, bc, mc)):
-        # calculate transformed RPE
-        rpe = r + gamma*z_next.dot(w) - z.dot(w) + nse[t]
-        rpe_trans = m*(rpe-b)
-
-        # if CS onset, save rpe, value, and weights
-        if z_nn[isi_ind] == 1: # CS onset
-            data['rpes'].append(rpe_trans) # CS rpe from current trial
-            data['values'].append(z_next.dot(w)) # CS value on current trial
-            data['weights'].append(w.copy())
-        
-        # learning update
-        w = w_memory*w + (alpha * rpe_trans * z)
-        
-    # convert all lists to arrays
-    for key, values in data.items():
-        data[key] = np.array(values)
-    return data
-    # return np.hstack(rpes), np.hstack(values), np.vstack(weights)
 
 #%% Lee 2020, multiple experiments
 # key observations:
@@ -150,7 +97,7 @@ for seed in seeds:
                 bs[~ix] = 0
                 ms[~ix] = 1
 
-            td_data = TD_mod(Z, R, bs, ms, gamma=gamma, alpha=alpha, w_memory=w_memory, isi_ind=0, eps_z=eps_z, eps=eps)
+            td_data = TD(Z, R, bs, ms, gamma=gamma, alpha=alpha, w_memory=w_memory, save_index=0, eps_z=eps_z, eps=eps)
 
             if model['name'] == 'Value':
                 p_action = td_data['values']
@@ -290,7 +237,7 @@ for seed in seeds:
             Rc = R.copy()
             if 'CS–' in mode:
                 Rc = 0*Rc
-            td_data = TD_mod(Zc, Rc, bs, ms, gamma=gamma, alpha=alpha, w_memory=w_memory, isi_ind=0, eps_z=eps_z, eps=eps)
+            td_data = TD(Zc, Rc, bs, ms, gamma=gamma, alpha=alpha, w_memory=w_memory, save_index=0, eps_z=eps_z, eps=eps)
 
             if model['name'] == 'Value':
                 p_action = td_data['values']

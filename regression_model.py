@@ -50,3 +50,32 @@ def get_data_per_session(session, da_window, lick_window, trial_types=None, zsco
     Y = get_feature_from_trials(session, 'licks', lick_window, trial_types, 'mean', trial_type_key=trial_type_key)
     X = zscore_if_possible(X) if zscore_spikes else X
     return X, Y
+
+def build_design_matrix(X, K):
+    """
+    Build a design matrix for regression with K time steps of history.
+    X: 2D array of shape (T, D) where T is the number of time steps and D is the number of features
+    K: int, number of time steps of history to include in the design matrix
+    Returns:
+        Z: 2D array of shape (T-K+1, D*K) where T-K+1 is the number of time steps after K and D*K is the number of features
+    """
+    X = np.asarray(X)
+    T, D = X.shape
+    Z = np.zeros((T - K + 1, D * K))
+    for t in range(K - 1, T):
+        window = X[t - K + 1:t + 1]  # shape (K, D)
+        # Transpose to (D, K) and then flatten so we get feature 0's full window first, then feature 1's
+        Z[t - K + 1, :] = window.T.flatten()
+    return Z
+
+def shuffle_trials(y, y_ref):
+    """
+    shuffle trials in y, preserving NaN positions from y_ref
+    """
+    rng = default_rng(123)
+    y_shuffled = y.copy()
+    ix_valid = ~np.isnan(y_ref)
+    y_valid = y_shuffled[ix_valid]
+    rng.shuffle(y_valid)
+    y_shuffled[ix_valid] = y_valid
+    return y_shuffled

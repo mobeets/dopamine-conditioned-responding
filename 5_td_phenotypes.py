@@ -3,61 +3,59 @@
 import os.path
 import numpy as np
 from numpy.random import default_rng
-from sklearn.linear_model import LinearRegression, Ridge, LogisticRegression
-from sklearn.model_selection import KFold
 from tqdm import tqdm
 
-from td import create_experiment, create_experiment_multiple_cues
+from td import create_experiment, TD
 from figure_helpers import plt, handle_fig
-from regression_model import zscore_if_possible, get_data_per_session
+from regression_model import build_design_matrix
 
 #%% experiment and agent helper functions
 
-def TD_with_trial_data(Z, R, gamma, alpha=0.1, isi_ind=1, w_memory=1, eps=0.0, seed=None, eps_z=0.0):
-    Znext_noNoise = Z[1:].copy()
-    if eps_z > 0.0:
-        rng = default_rng(seed+1) if seed is not None else default_rng()
-        Z = Z + eps_z * rng.standard_normal(size=Z.shape)
-    Zcur = Z[:-1]
-    Znext = Z[1:]
+# def TD_with_trial_data(Z, R, gamma, alpha=0.1, save_index=0, w_memory=1, eps=0.0, seed=None, eps_z=0.0):
+#     Znext_noNoise = Z[1:].copy()
+#     if eps_z > 0.0:
+#         rng = default_rng(seed+1) if seed is not None else default_rng()
+#         Z = Z + eps_z * rng.standard_normal(size=Z.shape)
+#     Zcur = Z[:-1]
+#     Znext = Z[1:]
+#     Rc = R[:-1]
     
-    Rc = R[:-1]
-    w = np.zeros(Z.shape[1])
-    rpe = np.nan
-    data = {'CS_rpes': [], 'values': [], 'weights': []}
+#     w = np.zeros(Z.shape[1])
+#     rpe = np.nan
+#     data = {'rpes': [], 'values': [], 'weights': []}
 
-    rng = default_rng(seed)
-    nse = eps * rng.standard_normal(size=len(Z))
+#     rng = default_rng(seed)
+#     nse = eps * rng.standard_normal(size=len(Z))
 
-    for z, z_next, z_nn, r, eps_t in zip(Zcur, Znext, Znext_noNoise, Rc, nse):
-        rpe = r + gamma*z_next.dot(w) - z.dot(w) + eps_t
+#     for z, z_next, z_nn, r, eps_t in zip(Zcur, Znext, Znext_noNoise, Rc, nse):
+#         rpe = r + gamma*z_next.dot(w) - z.dot(w) + eps_t
 
-        if z_nn[isi_ind] == 1: # CS onset
-            data['CS_rpes'].append(rpe) # CS rpe from current trial
-            data['values'].append(z_next.dot(w)) # CS value on current trial
-            data['weights'].append(w.copy())
+#         if z_nn[save_index] == 1: # CS onset
+#             data['rpes'].append(rpe) # CS rpe from current trial
+#             data['values'].append(z_next.dot(w)) # CS value on current trial
+#             data['weights'].append(w.copy())
         
-        w = w_memory*w + alpha*rpe*z
+#         w = w_memory*w + alpha*rpe*z
     
-    # convert all lists to arrays
-    for key, values in data.items():
-        data[key] = np.array(values)
-    return data
+#     # convert all lists to arrays
+#     for key, values in data.items():
+#         data[key] = np.array(values)
+#     return data
 
 EXPERIMENT_PARAMS = {
-    'ntrials': 10000,
-    'iti_min': 5,
-    'iti_p': 0.125,
-    'isi': 8,
-    'add_bias': True,
-    'seed': None, 
+    'ntrials': 10000, # number of trials to simulate
+    'iti_min': 5, # minimum ITI in time steps
+    'iti_p': 0.125, # probability of ITI increasing by 1 time step (geometric distribution)
+    'isi': 8, # ISI in time steps
+    'add_bias': True, # whether to add a bias term to the state representation
+    'seed': None, # random seed for experiment generation
 }
 TD_PARAMS = {
-    'alpha': 0.004,
-    'gamma': 0.9,
-    'w_memory': 1,
+    'alpha': 0.004, # learning rate
+    'gamma': 0.9, # discount factor
+    'w_memory': 1, # degree to which weights are preserved across time steps
     'eps': 0.05, # noise added to RPEs during TD learning
-    'seed': None,
+    'seed': None, # random seed for TD learning
     'eps_z': 0.0, # noise added to state representation during TD learning
 }
 
@@ -84,7 +82,7 @@ def train(experiment_params=None, td_params=None, **overrides):
 
     Z, R = create_experiment(experiment_params['ntrials'], experiment_params['iti_min'], experiment_params['iti_p'], experiment_params['isi'], r_prob=1.0, add_bias=experiment_params['add_bias'], reward_size=1, seed=experiment_params['seed'], stack=True)
 
-    data = TD_with_trial_data(Z, R, gamma=td_params['gamma'], alpha=td_params['alpha'], w_memory=td_params['w_memory'], isi_ind=0, eps=td_params['eps'], seed=td_params['seed'], eps_z=td_params['eps_z'])
+    data = TD(Z, R, gamma=td_params['gamma'], alpha=td_params['alpha'], w_memory=td_params['w_memory'], save_index=0, eps=td_params['eps'], seed=td_params['seed'], eps_z=td_params['eps_z'])
     return data
 
 def exp_smooth_agent(xs, alpha=0.9, eps=0.0, seed=123):
@@ -123,9 +121,9 @@ def exp_smooth_agent_multiple(xss, alpha=0.9, weights=(1.0), eps=0.0, seed=123):
 def run_agents(data, agent_names=None, eps=0.0, alpha=0.9, seed=123):
     agents = {
         'CS Value': {'licks': exp_smooth_agent(data['values'], alpha=alpha, eps=eps, seed=seed)},
-        'CS DA': {'licks': exp_smooth_agent(data['CS_rpes'], alpha=alpha, eps=eps, seed=seed)},
-        'CS DA*V': {'licks': exp_smooth_agent(data['CS_rpes'] * data['values'], alpha=alpha, eps=eps, seed=seed)},
-        'CS DA+V': {'licks': exp_smooth_agent_multiple((data['CS_rpes'], data['values']), alpha=alpha, weights=(1.0, 2.0), eps=eps, seed=seed)},
+        'CS DA': {'licks': exp_smooth_agent(data['rpes'], alpha=alpha, eps=eps, seed=seed)},
+        'CS DA*V': {'licks': exp_smooth_agent(data['rpes'] * data['values'], alpha=alpha, eps=eps, seed=seed)},
+        'CS DA+V': {'licks': exp_smooth_agent_multiple((data['rpes'], data['values']), alpha=alpha, weights=(1.0, 2.0), eps=eps, seed=seed)},
     }
 
     if agent_names is not None:
@@ -136,35 +134,6 @@ def run_agents(data, agent_names=None, eps=0.0, alpha=0.9, seed=123):
     return agents
 
 #%% regression helper functions
-
-def build_design_matrix(X, K):
-    """
-    Build a design matrix for regression with K time steps of history.
-    X: 2D array of shape (T, D) where T is the number of time steps and D is the number of features
-    K: int, number of time steps of history to include in the design matrix
-    Returns:
-        Z: 2D array of shape (T-K+1, D*K) where T-K+1 is the number of time steps after K and D*K is the number of features
-    """
-    X = np.asarray(X)
-    T, D = X.shape
-    Z = np.zeros((T - K + 1, D * K))
-    for t in range(K - 1, T):
-        window = X[t - K + 1:t + 1]  # shape (K, D)
-        # Transpose to (D, K) and then flatten so we get feature 0's full window first, then feature 1's
-        Z[t - K + 1, :] = window.T.flatten()
-    return Z
-
-def shuffle_trials(y, y_ref):
-    """
-    shuffle trials in y, preserving NaN positions from y_ref
-    """
-    rng = default_rng(123)
-    y_shuffled = y.copy()
-    ix_valid = ~np.isnan(y_ref)
-    y_valid = y_shuffled[ix_valid]
-    rng.shuffle(y_valid)
-    y_shuffled[ix_valid] = y_valid
-    return y_shuffled
 
 def simulate_agents(nruns, data_keys, all_run_params, agent_names=None):
     clrs = plt.rcParams['axes.prop_cycle'].by_key()['color']
@@ -184,7 +153,13 @@ def simulate_agents(nruns, data_keys, all_run_params, agent_names=None):
 
 #%% generate agents
 
-def generate_agent_data(add_rep_noise, nruns=500, do_overwrite=False):
+def generate_agent_data(add_rep_noise, nruns=500, do_overwrite=False, try_to_load=True):
+    filename = "data/regression_weights_agents_nomdl_with_noise.npz" if add_rep_noise else "data/regression_weights_agents_nomdl.npz"
+
+    if try_to_load and os.path.exists(filename):
+        results = np.load(filename, allow_pickle=True)['results']
+        return results
+
     data_keys = ('CS_rpes',)
     agent_names = ('CS Value', 'CS DA') # names of agents to run
 
@@ -200,22 +175,21 @@ def generate_agent_data(add_rep_noise, nruns=500, do_overwrite=False):
         'td_w_memory': [1-1e-6, 1-1e-5, 1-1e-4],} # TD forgetting factor
 
     results = simulate_agents(nruns=nruns, data_keys=data_keys, all_run_params=all_run_params, agent_names=agent_names)
-    filename = "data/regression_weights_agents_nomdl_with_noise.npz" if add_rep_noise else "data/regression_weights_agents_nomdl.npz"
+    
     if not os.path.exists(filename) or do_overwrite:
         np.savez(filename, results=results)
     else:
         print(f"File {filename} already exists. Set do_overwrite=True to overwrite.")
+    return results
 
 #%% plot correlation between licking and CS DA history
 
 do_save = False
-add_rep_noise = False
+add_rep_noise = True
 history_length = 5
+data_keys = ('rpes',)
 
-filename = f"data/regression_weights_agents_nomdl_with_noise.npz" if add_rep_noise else "data/regression_weights_agents_nomdl.npz"
-if not os.path.exists(filename):
-    generate_agent_data(add_rep_noise)
-results = np.load(filename, allow_pickle=True)['results']
+results = generate_agent_data(add_rep_noise)
 
 # Calculate correlations between licking and CS DA at different lags
 Rhos = [[], []]
@@ -233,6 +207,12 @@ for result in results:
         rhos = np.array([np.corrcoef(Z[:,k], y_target)[0,1] for k in range(Z.shape[1])])
         Rhos[i].append(rhos)
 Rhos = [np.vstack(r) for r in Rhos]
+
+def plot_quantile_band(x, Y, color='C0', label=None):
+    for q in [10,20,30,40]:
+        qlb, qub = np.percentile(Y, [q, 100-q], axis=0)
+        plt.fill_between(x, qlb, qub, color=color, alpha=0.2, linewidth=0)
+    plt.plot(x, np.median(Y, axis=0), color=color, linewidth=2, label=label)
 
 # Plot mean correlations per agent
 nx = history_length
@@ -273,97 +253,3 @@ se_dp = np.std(dprimes)
 ci_lower = np.percentile(dprimes, 2.5)
 ci_upper = np.percentile(dprimes, 97.5)
 print(f"d': {mu_dp:.3f} ± {se_dp:.3f}, 95% CI: [{ci_lower:.3f}, {ci_upper:.3f}]")
-
-#%% get correlations between licking and CS DA history in empirical data
-
-do_save = False
-conds = [
-    {'D': D2, 'trial_type': 'A', 'title': D2.exp_name},
-    {'D': D3, 'trial_type': 'A', 'title': D3.exp_name},
-    {'D': D4, 'trial_type': 'B', 'title': D4.exp_name},
-    {'D': D5b, 'trial_type': 'A', 'title': D5b.exp_name},
-    {'D': D5a, 'trial_type': 'A', 'title': D5a.exp_name},
-    {'D': D1, 'trial_type': 'A', 'title': D1.exp_name},
-    ]
-
-history_length = 5
-nboots = 100
-
-Rhos = []
-Rhos_shuf = []
-for i, cond in enumerate(conds):
-    D = cond['D']
-    trial_type = cond['trial_type']
-    trial_types = D.trial_types[trial_type][:1]
-    da_window = D.da_bin_window
-    lick_window = D.lick_bin_windows[trial_type]
-
-    lick_to_hz = 1000 / D.bin_size
-    day_indices = None # if 'Qian' not in D.exp_name else (3,4)
-    # day_indices = None if 'Qian' not in D.exp_name else (0,1,)
-    use_mean_spikes = False if ('Qian' in D.exp_name or 'Amo' in D.exp_name) else True
-
-    X = []
-    Xshuf = []
-    y = []
-    for j, session in enumerate(D.Sessions):
-        if day_indices is not None and session[0]['day_index'] not in day_indices:
-            continue
-        Xc, yc = get_data_per_session(session, da_window, lick_window, trial_types=trial_types, zscore_spikes=False, use_mean_spikes=use_mean_spikes, subtract_baseline_spikes=False)
-
-        # session-wise z-scoring
-        Xc = zscore_if_possible(Xc)
-        yc = zscore_if_possible(yc)
-        
-        X_pad = np.nan * np.ones(history_length)
-        X.append(X_pad)
-        y.append(X_pad)
-        Xshuf.append(X_pad)
-        X.append(Xc)
-        y.append(yc)
-        Xshuf.append(shuffle_trials(Xc, yc))
-
-    X = np.hstack(X)
-    y = np.hstack(y)
-    Z_all = build_design_matrix(X[:,None], history_length)
-    ix = np.any(np.isnan(Z_all), axis=1)
-    y_target = y[history_length-1:] # shape (T-K+1,)
-    Z = Z_all[~ix]
-    y = y_target[~ix]
-
-    Xshuf = np.hstack(Xshuf)
-    Z_all_shuf = build_design_matrix(Xshuf[:,None], history_length)
-    ix_shuf = np.any(np.isnan(Z_all_shuf), axis=1)
-    Z_shuf = Z_all_shuf[~ix_shuf]
-    y_shuf = y_target[~ix_shuf]
-
-    rhos_all = []
-    rhos_all_shuf = []
-    for _ in range(nboots):
-        Zc = Z.copy()
-        yc = y.copy()
-        # sample random 90% of trials
-        rng = default_rng()
-        n_samples = int(0.9 * len(yc))
-        sample_idx = rng.choice(len(yc), size=n_samples, replace=False)
-        Zc = Zc[sample_idx]
-        yc = yc[sample_idx]
-        # compute correlations
-        rhos = np.array([np.corrcoef(Zc[:,k], yc)[0,1] for k in range(Zc.shape[1])])
-        rhos_all.append(rhos)
-
-        # now do the same for shuffled data
-        Zc_shuf = Z_shuf.copy()
-        yc_shuf = y_shuf.copy()
-        sample_idx_shuf = rng.choice(len(yc_shuf), size=n_samples, replace=False)
-        Zc_shuf = Zc_shuf[sample_idx_shuf]
-        yc_shuf = yc_shuf[sample_idx_shuf]
-        rhos_shuf = np.array([np.corrcoef(Zc_shuf[:,k], yc_shuf)[0,1] for k in range(Zc_shuf.shape[1])])
-        rhos_all_shuf.append(rhos_shuf)
-    rhos_all = np.vstack(rhos_all)
-    Rhos.append(rhos_all)
-    rhos_all_shuf = np.vstack(rhos_all_shuf)
-    Rhos_shuf.append(rhos_all_shuf)
-
-fig = plot_correlations([rhos[:,-1] for rhos in Rhos], ylbl="Corr. between Licks(t) and CS DA(t)", xticklabels=[cond['title'] for cond in conds], zeroline=True)
-handle_fig(fig, f"regression_weights_all_experiments", do_save=do_save)
