@@ -37,17 +37,26 @@ def TD_mod(Z, R, bs, ms, gamma, alpha=0.1, w_memory=1, isi_ind=0, eps=0.0, eps_z
     rng = default_rng(seed)
     nse = eps * rng.standard_normal(size=len(Z))
 
+    data = {'rpes': [], 'values': [], 'weights': []}
     for t, (z, z_next, z_nn, r, b, m) in enumerate(zip(Zcur, Znext, Znext_noNoise, Rc, bc, mc)):
+        # calculate transformed RPE
         rpe = r + gamma*z_next.dot(w) - z.dot(w) + nse[t]
         rpe_trans = m*(rpe-b)
 
+        # if CS onset, save rpe, value, and weights
         if z_nn[isi_ind] == 1: # CS onset
-            rpes.append(rpe_trans)
-            values.append(z_next.dot(w))
-            weights.append(w.copy())
+            data['rpes'].append(rpe_trans) # CS rpe from current trial
+            data['values'].append(z_next.dot(w)) # CS value on current trial
+            data['weights'].append(w.copy())
+        
+        # learning update
         w = w_memory*w + (alpha * rpe_trans * z)
         
-    return np.hstack(rpes), np.hstack(values), np.vstack(weights)
+    # convert all lists to arrays
+    for key, values in data.items():
+        data[key] = np.array(values)
+    return data
+    # return np.hstack(rpes), np.hstack(values), np.vstack(weights)
 
 #%% Lee 2020, multiple experiments
 # key observations:
@@ -141,17 +150,12 @@ for seed in seeds:
                 bs[~ix] = 0
                 ms[~ix] = 1
 
-            DA, values, ws = TD_mod(Z, R, bs, ms, gamma=gamma, alpha=alpha, w_memory=w_memory, isi_ind=0, eps_z=eps_z, eps=eps)
+            td_data = TD_mod(Z, R, bs, ms, gamma=gamma, alpha=alpha, w_memory=w_memory, isi_ind=0, eps_z=eps_z, eps=eps)
 
-            f = lambda h, m, b: 1 / (1 + np.exp(-m*(h-b)))
-            # p_action = f(values, 5, 0)
-            # p_action = f(DA, 5, 0)
             if model['name'] == 'Value':
-                p_action = values
+                p_action = td_data['values']
             elif model['name'] == 'DA':
-                p_action = DA
-                # p_action = values * (1 + DA)
-
+                p_action = td_data['rpes']
             assert len(p_action) == ntrials
 
             final_lick_probs = p_action[-n_final_trials:].mean()
@@ -286,19 +290,12 @@ for seed in seeds:
             Rc = R.copy()
             if 'CS–' in mode:
                 Rc = 0*Rc
-            DA, values, ws = TD_mod(Zc, Rc, bs, ms, gamma=gamma, alpha=alpha, w_memory=w_memory, isi_ind=0, eps_z=eps_z, eps=eps)
-
-            f = lambda h, m, b: 1 / (1 + np.exp(-m*(h-b)))
-            p_action = f(values, 5, 0)
-            # p_action = f(DA, 10, 0.5)
-            # p_action = values
+            td_data = TD_mod(Zc, Rc, bs, ms, gamma=gamma, alpha=alpha, w_memory=w_memory, isi_ind=0, eps_z=eps_z, eps=eps)
 
             if model['name'] == 'Value':
-                p_action = values
+                p_action = td_data['values']
             elif model['name'] == 'DA':
-                p_action = DA
-                # p_action = values * (1 + DA)
-            
+                p_action = td_data['rpes']
             assert len(p_action) == ntrials
 
             final_lick_probs = p_action[-n_final_trials:].mean()

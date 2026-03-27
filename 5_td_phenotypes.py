@@ -1,5 +1,6 @@
 #%% imports
 
+import os.path
 import numpy as np
 from numpy.random import default_rng
 from sklearn.linear_model import LinearRegression, Ridge, LogisticRegression
@@ -23,8 +24,7 @@ def TD_with_trial_data(Z, R, gamma, alpha=0.1, isi_ind=1, w_memory=1, eps=0.0, s
     Rc = R[:-1]
     w = np.zeros(Z.shape[1])
     rpe = np.nan
-    rpe_us = np.nan
-    data = {'CS_rpes': [], 'prev_US_rpes': [], 'values': [], 'weights': []}
+    data = {'CS_rpes': [], 'values': [], 'weights': []}
 
     rng = default_rng(seed)
     nse = eps * rng.standard_normal(size=len(Z))
@@ -32,15 +32,10 @@ def TD_with_trial_data(Z, R, gamma, alpha=0.1, isi_ind=1, w_memory=1, eps=0.0, s
     for z, z_next, z_nn, r, eps_t in zip(Zcur, Znext, Znext_noNoise, Rc, nse):
         rpe = r + gamma*z_next.dot(w) - z.dot(w) + eps_t
 
-        if r > 0: # US rpe
-            rpe_us = rpe
-
         if z_nn[isi_ind] == 1: # CS onset
             data['CS_rpes'].append(rpe) # CS rpe from current trial
-            data['prev_US_rpes'].append(rpe_us) # US rpe from previous trial
             data['values'].append(z_next.dot(w)) # CS value on current trial
             data['weights'].append(w.copy())
-            rpe_us = np.nan
         
         w = w_memory*w + alpha*rpe*z
     
@@ -171,8 +166,6 @@ def shuffle_trials(y, y_ref):
     y_shuffled[ix_valid] = y_valid
     return y_shuffled
 
-#%% simulate agents without linear model
-
 def simulate_agents(nruns, data_keys, all_run_params, agent_names=None):
     clrs = plt.rcParams['axes.prop_cycle'].by_key()['color']
     fig = plt.figure(figsize=(3*len(data_keys),3))
@@ -189,35 +182,43 @@ def simulate_agents(nruns, data_keys, all_run_params, agent_names=None):
         results.append({'run_params': run_params, 'agents': agents, 'data': data})
     return results
 
-data_keys = ('CS_rpes',)
-agent_names = ('CS Value', 'CS DA') # names of agents to run
-add_rep_noise = True
+#%% generate agents
 
-all_run_params = {
-    'ridge_history_length': [5], # history length for Ridge regression
-    'ridge_alpha': [1.0], # Ridge regression regularization parameter
-    # 'agent_alpha': [0.7, 0.8, 0.9, 0.95, 0.99, 1.0], # smoothing factor for agent's licks
-    'agent_alpha': np.arange(0.1, 1, 0.1), # smoothing factor for agent's licks
-    'eps_agent': [0.1, 0.2, 0.3, 0.4], # noise added to agent's licks
-    # 'eps_agent': [0.0, 0.1, 0.2, 0.3, 0.5, 0.9], # noise added to agent's licks
-    'td_eps_z': [0.2 if add_rep_noise else 0.0], # noise added to state representation during TD learning
-    'td_gamma': [0.5, 0.6, 0.7, 0.8, 0.9],
-    'td_alpha': [0.001, 0.004, 0.01, 0.02, 0.05, 0.1], # TD learning rate
-    'td_w_memory': [1-1e-6, 1-1e-5, 1-1e-4],} # TD forgetting factor
-# run_params = {'history_length': history_length, 'alpha_ridge': 0.01, 'eps_agent': 0.1, 'td_alpha': 0.001, 'td_w_memory': 1-1e-6}
+def generate_agent_data(add_rep_noise, nruns=500, do_overwrite=False):
+    data_keys = ('CS_rpes',)
+    agent_names = ('CS Value', 'CS DA') # names of agents to run
 
-results = simulate_agents(nruns=500, data_keys=data_keys, all_run_params=all_run_params, agent_names=agent_names)
-# np.savez("data/regression_weights_agents_nomdl_with_noise.npz" if add_rep_noise else "data/regression_weights_agents_nomdl.npz", results=results)
+    all_run_params = {
+        'ridge_history_length': [5], # history length for Ridge regression
+        'ridge_alpha': [1.0], # Ridge regression regularization parameter
+        'agent_alpha': np.arange(0.1, 1, 0.1), # smoothing factor for agent's licks
+        'eps_agent': [0.1, 0.2, 0.3, 0.4], # noise added to agent's licks
+        # 'eps_agent': [0.0, 0.1, 0.2, 0.3, 0.5, 0.9], # noise added to agent's licks
+        'td_eps_z': [0.2 if add_rep_noise else 0.0], # noise added to state representation during TD learning
+        'td_gamma': [0.5, 0.6, 0.7, 0.8, 0.9],
+        'td_alpha': [0.001, 0.004, 0.01, 0.02, 0.05, 0.1], # TD learning rate
+        'td_w_memory': [1-1e-6, 1-1e-5, 1-1e-4],} # TD forgetting factor
+
+    results = simulate_agents(nruns=nruns, data_keys=data_keys, all_run_params=all_run_params, agent_names=agent_names)
+    filename = "data/regression_weights_agents_nomdl_with_noise.npz" if add_rep_noise else "data/regression_weights_agents_nomdl.npz"
+    if not os.path.exists(filename) or do_overwrite:
+        np.savez(filename, results=results)
+    else:
+        print(f"File {filename} already exists. Set do_overwrite=True to overwrite.")
 
 #%% plot correlation between licking and CS DA history
 
 do_save = False
 add_rep_noise = False
-results = np.load(f"data/regression_weights_agents_nomdl_with_noise.npz" if add_rep_noise else "data/regression_weights_agents_nomdl.npz", allow_pickle=True)['results']
+history_length = 5
+
+filename = f"data/regression_weights_agents_nomdl_with_noise.npz" if add_rep_noise else "data/regression_weights_agents_nomdl.npz"
+if not os.path.exists(filename):
+    generate_agent_data(add_rep_noise)
+results = np.load(filename, allow_pickle=True)['results']
 
 # Calculate correlations between licking and CS DA at different lags
 Rhos = [[], []]
-history_length = 5
 for result in results:
     data = result['data']
     X = np.column_stack([data[key] for key in data_keys]).copy() # shape (T, D)
@@ -280,7 +281,6 @@ conds = [
     {'D': D2, 'trial_type': 'A', 'title': D2.exp_name},
     {'D': D3, 'trial_type': 'A', 'title': D3.exp_name},
     {'D': D4, 'trial_type': 'B', 'title': D4.exp_name},
-    # {'D': D5c, 'trial_type': 'A', 'title': D5c.exp_name},
     {'D': D5b, 'trial_type': 'A', 'title': D5b.exp_name},
     {'D': D5a, 'trial_type': 'A', 'title': D5a.exp_name},
     {'D': D1, 'trial_type': 'A', 'title': D1.exp_name},
@@ -367,24 +367,3 @@ for i, cond in enumerate(conds):
 
 fig = plot_correlations([rhos[:,-1] for rhos in Rhos], ylbl="Corr. between Licks(t) and CS DA(t)", xticklabels=[cond['title'] for cond in conds], zeroline=True)
 handle_fig(fig, f"regression_weights_all_experiments", do_save=do_save)
-
-# compare correlations to shuffled
-# fig2 = plot_correlations([np.vstack([rhos_shuf[:,-1], rhos[:,-1]]).T for rhos,rhos_shuf in zip(Rhos,Rhos_shuf)], ylbl="$\Delta$ Corr. between Licks(t) and CS DA(t)", xticklabels=[cond['title'] for cond in conds], zeroline=True, ystar=0.3, paired=False)
-
-#%%
-
-ind = [i for i, cond in enumerate(conds) if 'Qian' in cond['title']][0]
-# Plot mean correlations per agent
-nx = history_length
-fig = plt.figure(figsize=(3,3))
-x = np.arange(nx)[::-1]
-plot_quantile_band(x, Rhos[ind], 'k')
-plt.xlabel('# Trials back')
-plt.ylabel('Corr. between licks and CS DA')
-plt.xticks(np.arange(0, nx, 1))
-plt.legend(fontsize=8)
-plt.tight_layout()
-plt.xlim([-0.1, nx-0.9])
-plt.ylim([-0.05, 0.65])
-plt.plot(plt.xlim(), [0, 0], 'k--', alpha=0.5, zorder=-1)
-# handle_fig(fig, f"regression_weights_agents_Qian_corr")
