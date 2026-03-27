@@ -143,6 +143,7 @@ for model in models:
 #%% plot Lee 2020 results on random trials
 
 do_save = False
+
 for model in models:
     fig = plt.figure(figsize=(1.5,2.5))
     for mode in pert_params.keys():

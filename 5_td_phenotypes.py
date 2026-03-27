@@ -11,37 +11,6 @@ from regression_model import build_design_matrix
 
 #%% experiment and agent helper functions
 
-# def TD_with_trial_data(Z, R, gamma, alpha=0.1, save_index=0, w_memory=1, eps=0.0, seed=None, eps_z=0.0):
-#     Znext_noNoise = Z[1:].copy()
-#     if eps_z > 0.0:
-#         rng = default_rng(seed+1) if seed is not None else default_rng()
-#         Z = Z + eps_z * rng.standard_normal(size=Z.shape)
-#     Zcur = Z[:-1]
-#     Znext = Z[1:]
-#     Rc = R[:-1]
-    
-#     w = np.zeros(Z.shape[1])
-#     rpe = np.nan
-#     data = {'rpes': [], 'values': [], 'weights': []}
-
-#     rng = default_rng(seed)
-#     nse = eps * rng.standard_normal(size=len(Z))
-
-#     for z, z_next, z_nn, r, eps_t in zip(Zcur, Znext, Znext_noNoise, Rc, nse):
-#         rpe = r + gamma*z_next.dot(w) - z.dot(w) + eps_t
-
-#         if z_nn[save_index] == 1: # CS onset
-#             data['rpes'].append(rpe) # CS rpe from current trial
-#             data['values'].append(z_next.dot(w)) # CS value on current trial
-#             data['weights'].append(w.copy())
-        
-#         w = w_memory*w + alpha*rpe*z
-    
-#     # convert all lists to arrays
-#     for key, values in data.items():
-#         data[key] = np.array(values)
-#     return data
-
 EXPERIMENT_PARAMS = {
     'ntrials': 10000, # number of trials to simulate
     'iti_min': 5, # minimum ITI in time steps

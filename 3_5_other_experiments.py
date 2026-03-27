@@ -1,16 +1,16 @@
 #%% imports
 
 import numpy as np
-from data_loaders import QianBurrell2024, Eshel2016, Matsumoto2016, HyungGoo2020, Amo2024
+from data_loaders import QianBurrell2024, Eshel2016, Matsumoto2016, Kim2020, Amo2024
 from regression_model import get_feature_from_trials, get_data_per_session, zscore_if_possible, build_design_matrix, shuffle_trials
 from figure_helpers import handle_fig, plot_correlations
 
 #%% load sessions
 
 D1 = QianBurrell2024()
-D2 = Eshel2016(key='Variable-Expectation')
+D2 = Eshel2016()
 D3 = Matsumoto2016()
-D4 = HyungGoo2020()
+D4 = Kim2020()
 D5a = Amo2024(key='CC_DA')
 D5b = Amo2024(key='CC_GCaMP')
 

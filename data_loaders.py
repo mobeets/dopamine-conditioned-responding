@@ -7,6 +7,9 @@ from scipy.io import loadmat
 import h5py
 import pandas as pd
 
+# set base data directory to home user folder
+DATADIR = os.path.expanduser('~/code/vta-data')
+
 #%% add DA at CS onset
 
 def add_DA_at_CS_onset(D, da_window=None, use_mean_spikes=True, key_name='CS_DA_peak', baseline_center=False):
@@ -45,13 +48,14 @@ class QianBurrell2024:
     VS (lateral nucleus accumbens) - fluorometry w/ calcium sensor
     """
     __paper_url__ = 'https://pmc.ncbi.nlm.nih.gov/articles/PMC10871210/'
-    __data_url__ = None
+    __data_url__ = 'https://datadryad.org/dataset/doi:10.5061/dryad.mkkwh71f6'
 
-    def __init__(self):
+    def __init__(self, datadir=DATADIR):
         self.exp_name = 'Qian & Burrell et al., 2025'
         # n.b. this is data from just one fiber, but there were more in other parts of VS
-        self.dfl = pd.read_parquet('data/lick_data_for_jay.parquet')
-        self.dfd = pd.read_parquet('data/photo_data_for_jay.parquet')
+        self.datadir = os.path.join(datadir, 'QianBurrell2025')
+        self.dfl = pd.read_parquet(os.path.join(self.datadir, 'data/lick_data_for_jay.parquet'))
+        self.dfd = pd.read_parquet(os.path.join(self.datadir, 'data/photo_data_for_jay.parquet'))
         
         self.odor_onset = 2.01
         self.sampling_rate = 20
@@ -204,7 +208,7 @@ class Eshel2016:
     __paper_url__ = 'https://pmc.ncbi.nlm.nih.gov/articles/PMC4767554/'
     __data_url__ = None
 
-    def __init__(self, key='Variable-Expectation', datadir='/Users/mobeets/Documents/Work/Gershman/projects/Eshel2016'):
+    def __init__(self, key='Variable-Expectation', datadir=DATADIR):
         """
         Variable-Expectation (Trial type, Meaning):
         1           90% expectation, received reward
@@ -222,8 +226,8 @@ class Eshel2016:
         """
         self.key = key
         self.exp_name = 'Eshel et al., 2016'
-        self.datadir = datadir
-        self.sessionfiles = glob.glob(os.path.join(datadir, self.key, '*.mat'))
+        self.datadir = os.path.join(datadir, 'Eshel2016')
+        self.sessionfiles = glob.glob(os.path.join(self.datadir, self.key, '*.mat'))
         self.bin_size = 50
         self.t_pre = 1000
         self.t_post = 4000
@@ -338,7 +342,7 @@ class Matsumoto2016:
     __paper_url__ = 'https://elifesciences.org/articles/17328'
     __data_url__ = 'https://doi.org/10.5061/dryad.8cz8w9gxj'
 
-    def __init__(self, key='_HighR*', datadir='/Users/mobeets/code/vta-data/Matsumoto2016'):
+    def __init__(self, key='_HighR*', datadir=DATADIR):
         """
 
         n.b. assuming we have 7 trial types where:
@@ -351,7 +355,7 @@ class Matsumoto2016:
             '7:US_freeairpuff'
         """
         self.exp_name = 'Matsumoto et al., 2016'
-        self.datadir = datadir
+        self.datadir = os.path.join(datadir, 'Matsumoto2016')
         self.key = key # HighR, HighR2, LowR, Mixed
         self.sessionfiles = glob.glob(os.path.join(self.datadir, '*' + self.key + '.mat'))
         self.bin_size = 50
@@ -445,18 +449,18 @@ class Matsumoto2016:
 
         return results
 
-#%% HyungGoo2020
+#%% Kim2020
 
-class HyungGoo2020:
+class Kim2020:
     """
     VTA - ephys, 100% rewarded
     """
     __paper_url__ = 'https://pmc.ncbi.nlm.nih.gov/articles/PMC7736562/'
     __data_url__ = None
 
-    def __init__(self, datadir='/Users/mobeets/code/vta-data/HyungGooData'):
+    def __init__(self, datadir=DATADIR):
         self.exp_name = 'Kim et al., 2020'
-        self.datadir = datadir
+        self.datadir = os.path.join(datadir, 'Kim2020')
         self.f = h5py.File(os.path.join(self.datadir, 'DA_SU_ODOR_NEW.h5'))
 
         self.t_pre = 1500
@@ -588,7 +592,7 @@ class Amo2024:
     __paper_url__ = 'https://doi.org/10.1016/j.neuron.2023.12.019'
     __data_url__ = 'https://datadryad.org/stash/dataset/doi:10.5061/dryad.ncjsxkt25'
 
-    def __init__(self, key='CC_DA', datadir='/Users/mobeets/code/vta-data/Amo2024'):
+    def __init__(self, key='CC_DA', datadir=DATADIR):
         """
         1: Free reward trial (reward at 1001)
         9: 80% reward predicting cue followed by reward (cue at 1001 and reward at 4001)
@@ -598,7 +602,7 @@ class Amo2024:
         14: 0% reward (nothing) predicting cue (cue at 1001)
         """
         self.exp_name = f"Amo et al., 2024 ({key.replace('CC_', '')})"
-        self.datadir = datadir
+        self.datadir = os.path.join(datadir, 'Amo2024')
         self.key = key
 
         self.sessionfiles = glob.glob(os.path.join(self.datadir, self.key + '_*.mat'))
