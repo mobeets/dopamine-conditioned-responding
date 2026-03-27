@@ -135,9 +135,7 @@ def run_agents(data, agent_names=None, eps=0.0, alpha=0.9, seed=123):
 
 #%% regression helper functions
 
-def simulate_agents(nruns, data_keys, all_run_params, agent_names=None):
-    clrs = plt.rcParams['axes.prop_cycle'].by_key()['color']
-    fig = plt.figure(figsize=(3*len(data_keys),3))
+def simulate_agents(nruns, all_run_params, agent_names=None):
     results = []
     # plot progress bar
     for n in tqdm(range(nruns)):
@@ -159,8 +157,7 @@ def generate_agent_data(add_rep_noise, nruns=500, do_overwrite=False, try_to_loa
     if try_to_load and os.path.exists(filename):
         results = np.load(filename, allow_pickle=True)['results']
         return results
-
-    data_keys = ('CS_rpes',)
+        
     agent_names = ('CS Value', 'CS DA') # names of agents to run
 
     all_run_params = {
@@ -174,7 +171,7 @@ def generate_agent_data(add_rep_noise, nruns=500, do_overwrite=False, try_to_loa
         'td_alpha': [0.001, 0.004, 0.01, 0.02, 0.05, 0.1], # TD learning rate
         'td_w_memory': [1-1e-6, 1-1e-5, 1-1e-4],} # TD forgetting factor
 
-    results = simulate_agents(nruns=nruns, data_keys=data_keys, all_run_params=all_run_params, agent_names=agent_names)
+    results = simulate_agents(nruns=nruns, all_run_params=all_run_params, agent_names=agent_names)
     
     if not os.path.exists(filename) or do_overwrite:
         np.savez(filename, results=results)
