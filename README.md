@@ -4,7 +4,7 @@
 
 - Install [uv](https://docs.astral.sh/uv/#installation)
 - Run `uv sync`
-- Download experimental data to subfolders within `DATADIR` (defined in `3_5_other_experiments.py`):
+- Download experimental data to subfolders within `DATADIR` (defined in `data_loaders.py`):
     - [QianBurrell2025](https://datadryad.org/dataset/doi:10.5061/dryad.mkkwh71f6)
     - [Amo2024](https://datadryad.org/stash/dataset/doi:10.5061/dryad.ncjsxkt25)
     - Kim2020: Available from author upon request
