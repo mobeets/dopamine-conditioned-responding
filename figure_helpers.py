@@ -476,8 +476,9 @@ def plot_time_series_over_trials(all_vals, ylbls, clr=DA_color, clr2='darkred', 
     ix1 = (pts1[:,-1] >= 0.5*pts1[~ix1_nan,-1].max()) | ix1_nan
     ix2 = (pts2[:,-1] >= 0.5*pts2[~ix2_nan,-1].max()) | ix2_nan
 
-    ax1.plot(xs1[ix1], pts1[ix1,1], '-', color=clr2, alpha=0.8, linewidth=1)
-    ax2.plot(xs2[ix2], pts2[ix2,1], '-',  color=clr, alpha=0.8, linewidth=1)
+    ax1.plot(xs1[ix1], pts1[ix1,1], '-', color=clr2, alpha=1.0, linewidth=1)
+    ax2.plot(xs2[ix2], pts2[ix2,1], '-',  color=clr, alpha=0.7, linewidth=1)
+    ax2.set_yticks([0, 3, 6, 9, 12])
 
     ax1.fill_between(xs1[ix1], pts1[ix1,1]-pts1[ix1,2], pts1[ix1,1]+pts1[ix1,2], color=clr2, alpha=0.2, zorder=-1, linewidth=0)
     ax2.fill_between(xs2[ix2], pts2[ix2,1]-pts2[ix2,2], pts2[ix2,1]+pts2[ix2,2], color=clr, alpha=0.2, zorder=-1, linewidth=0)

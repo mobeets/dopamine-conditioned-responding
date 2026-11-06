@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.random import default_rng
 
-def TD(Z, R, bs=None, ms=None, gamma=0.9, alpha=0.1, w_memory=1, save_index=0, eps=0.0, eps_z=0.0, seed=123):
+def TD(Z, R, bs=None, ms=None, gamma=0.9, alpha=0.1, w_memory=1, save_index=0, isi_index=0, eps=0.0, eps_z=0.0, seed=123):
     """
     performs TD learning on representations Z and rewards R,
         with optional slope and bias perturbations on the RPE calculation
@@ -16,6 +16,7 @@ def TD(Z, R, bs=None, ms=None, gamma=0.9, alpha=0.1, w_memory=1, save_index=0, e
     alpha (float) is learning rate (default: 0.1)
     w_memory (float) is degree to which weights are preserved across time steps (default: 1, aka no forgetting)
     save_index (int) will save data whenever Z[:,save_index] == 1 (default: 0)
+    isi_index (int) is the index of the ISI feature in the state representation, used to count trial indices (default: 0)
     eps (float) is std dev of noise added to RPE at each time step (default: 0)
     eps_z (float) is std dev of noise added to Z at each time step (default: 0)
     seed (int) is random seed for noise generation
@@ -38,19 +39,22 @@ def TD(Z, R, bs=None, ms=None, gamma=0.9, alpha=0.1, w_memory=1, save_index=0, e
     weights = []
     rng = default_rng(seed) if seed is not None else default_rng()
     nse = eps * rng.standard_normal(size=len(Z))
+    trial_index = 0
 
-    data = {'rpes': [], 'values': [], 'weights': []}
+    data = {'rpes': [], 'values': [], 'weights': [], 'trial_index': []}
     for t, (z, z_next, z_nn, r, b, m) in enumerate(zip(Zcur, Znext, Znext_noNoise, Rc, bc, mc)):
         # calculate transformed RPE
         rpe = r + gamma*z_next.dot(w) - z.dot(w) + nse[t]
         rpe_trans = m*(rpe-b)
 
         # if representation matches save_index, save rpe, value, and weights
+        if z_nn[isi_index] == 1: # CS onset
+            trial_index += 1
         if z_nn[save_index] == 1: # CS onset
             data['rpes'].append(rpe_trans) # rpe from current trial
             data['values'].append(z_next.dot(w)) # value on current trial
             data['weights'].append(w.copy())
-        
+            data['trial_index'].append(trial_index)
         # learning update
         w = w_memory*w + (alpha * rpe_trans * z)
         
