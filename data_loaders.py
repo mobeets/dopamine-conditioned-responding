@@ -8,7 +8,7 @@ import h5py
 import pandas as pd
 
 # set base data directory to home user folder
-DATADIR = os.path.expanduser('~/code/vta-data')
+DATADIR = os.path.expanduser('~/Documents/Work/Data/vta-data')
 
 #%% add DA at CS onset
 
@@ -26,7 +26,9 @@ def add_first_anticipatory_lick_time(D, key_name='time_of_first_lick'):
         for trial in trials:
             licks = trial['licks']
             times = trial['times']
-            if D.reward_onset is not None:
+            if 'reward_onset' in trial:
+                reward_onset = trial['reward_onset']
+            elif D.reward_onset is not None:
                 reward_onset = D.reward_onset
             else:
                 trial_type = int(trial['trial_type'])
@@ -34,7 +36,7 @@ def add_first_anticipatory_lick_time(D, key_name='time_of_first_lick'):
                 reward_onset = D.reward_times[odor]
             ixAnticip = (times > D.odor_onset) & (times < reward_onset)
             anticipatory_licks = licks[ixAnticip]
-            if anticipatory_licks.sum() < 1:
+            if not np.any(anticipatory_licks > 0):
                 time_of_first_lick = np.nan
             else:
                 t_first_lick = np.where(anticipatory_licks > 0)[0][0]
@@ -51,7 +53,7 @@ class QianBurrell2024:
     __data_url__ = 'https://datadryad.org/dataset/doi:10.5061/dryad.mkkwh71f6'
     __zip_url__ = 'https://drive.google.com/file/d/1fxXSRjgUev4AKNvFyAHuY10xNJLXoxcK/view?usp=drive_link'
 
-    def __init__(self, datadir=DATADIR):
+    def __init__(self, mouse_names=None, datadir=DATADIR):
         self.exp_name = 'Qian & Burrell et al., 2025'
         # n.b. this is data from just one fiber, but there were more in other parts of VS
         self.datadir = os.path.join(datadir, 'QianBurrell2025')
@@ -68,7 +70,10 @@ class QianBurrell2024:
         self.sampling_rate = 20
         self.bin_size = int(1000 / self.sampling_rate)
         self.reward_onset = self.odor_onset + 3.5
-        self.mouse_names = self.dfl.mouse.unique()
+        if mouse_names is not None:
+            self.mouse_names = mouse_names
+        else:
+            self.mouse_names = self.dfl.mouse.unique()
         self.trial_types = {'all': ['go', 'go_omit', 'no_go'], 'A': ['go', 'go_omit'], 'C': ['c_reward', 'c_omit'], 'D': ['no_go']}
 
         self.odor_onset_bin = int(self.odor_onset * 1000 / self.bin_size)
@@ -81,7 +86,7 @@ class QianBurrell2024:
         self.da_bin_window = (self.odor_onset_bin, self.odor_onset_bin + self.da_bin_length)
         self.da_bin_starts = np.arange(20, 80)
         
-        self.Sessions = self.load_all_data(self.dfl, self.dfd, self.odor_onset, self.reward_onset, self.sampling_rate)
+        self.Sessions = self.load_all_data(self.dfl, self.dfd, self.odor_onset, self.reward_onset, self.sampling_rate, self.mouse_names)
     
     def load_all_data(self, dfl, dfd, odor_onset, reward_onset, sampling_rate, mouse_names=None, day_indices=None, trial_types=None):
         if mouse_names is None:
@@ -458,6 +463,201 @@ class Matsumoto2016:
         for result in results:
             result['DA'] = (result['DA'] - mu) / sd
 
+        return results
+
+#%% Starkweather2017
+
+class Starkweather2017:
+    """
+    VTA - ephys
+    """
+    __paper_url__ = 'https://www.nature.com/articles/nn.4520'
+    __data_url__ = 'https://crcns.org/data-sets/bst/vta-1/about-vta-1'
+
+    def __init__(self, key='Task1', datadir=DATADIR, skip_missing_licks=False,
+                 combine_neurons=False, year='2017', condition=None,
+                 skip_unknown_trial_types=True, skip_task2b=True):
+        self.year = str(year)
+        self.exp_name = f'Starkweather et al., {self.year}'
+        if self.year not in ('2017', '2018'):
+            raise ValueError("year must be '2017' or '2018'")
+        valid_tasks = ('Task1', 'Task2', 'Task2b', None) if self.year == '2017' else ('Task1', 'Task2', None)
+        if key not in valid_tasks:
+            raise ValueError(f'key must be one of {valid_tasks} for {self.year}')
+        if condition not in (None, 'Saline', 'SalB'):
+            raise ValueError('condition must be Saline, SalB, or None')
+        if self.year == '2017' and condition is not None:
+            raise ValueError('condition is available only for 2018')
+        self.condition = condition
+        self.key = key
+        self.skip_missing_licks = skip_missing_licks
+        self.skip_unknown_trial_types = skip_unknown_trial_types
+        self.skip_task2b = skip_task2b
+        self.combine_neurons = combine_neurons
+        self.datadir = os.path.join(datadir, 'Starkweather', self.year)
+        
+        self.bin_size = 50 # ms
+        self.t_pre = 1000 # ms
+        self.t_post = 4000 # ms
+        self.times = np.arange(-self.t_pre, self.t_post, self.bin_size) / 1000
+        self.odor_onset = 0.0
+        self.reward_onset = None
+        self.reward_times = {'A': 2.0, 'B': 2.0 if key == 'Task2b' else 1.2,
+                             'C': 2.8, 'D': 2.0}
+        self.trial_types = {'all': [1,2,3,4], 'A': [1], 'B': [2],
+                            'C': [3], 'D': [4]}
+        if self.year == '2018':
+            self.trial_types['all'].append(0)
+            self.trial_types['unknown'] = [0]
+        self.odor_onset_bin = np.where(self.times >= self.odor_onset)[0][0]
+        self.lick_bin_windows = {
+            cue: (self.odor_onset_bin, np.where(self.times >= onset)[0][0])
+            for cue, onset in self.reward_times.items()}
+        self.lick_bin_windows['all'] = (
+            self.odor_onset_bin, np.where(self.times >= 2.0)[0][0])
+        if self.year == '2018':
+            self.lick_bin_windows['unknown'] = self.lick_bin_windows['all']
+        self.da_window_length = 0.5
+        self.da_bin_length = int(1000*self.da_window_length/self.bin_size)
+        self.da_bin_window = (self.odor_onset_bin,
+                              self.odor_onset_bin + self.da_bin_length)
+        self.da_bin_window_pre = (self.odor_onset_bin - self.da_bin_length,
+                                  self.odor_onset_bin)
+        self.da_bin_starts = np.arange(0, 60)
+
+        neurons = pd.read_parquet(os.path.join(self.datadir, 'neurons.parquet'))
+        trials = pd.read_parquet(os.path.join(self.datadir, 'trials.parquet'))
+        spikes = pd.read_parquet(os.path.join(self.datadir, 'spikes.parquet'))
+        if self.year == '2018':
+            # Adapt CRCNS identifiers and source codes to the 2017 schema.
+            neurons = neurons.rename(columns={'crcns_file': 'neuron_id'})
+            trials = trials.rename(columns={'crcns_file': 'neuron_id'})
+            spikes = spikes.rename(columns={'crcns_file': 'neuron_id'})
+            odor_by_code = {**{code: 'A' for code in range(1, 10)},
+                            10: 'B', 11: 'C', 13: 'A', 14: 'B',
+                            15: 'C', 16: 'D'}
+            trials['odor'] = trials.trial_type.map(odor_by_code)
+            lick_sources = neurons.set_index('neuron_id').lick_source
+            trials['lick_aligned'] = (
+                trials.neuron_id.map(lick_sources).eq('csc64') &
+                trials.licks_rel_ms.notna())
+            if condition is not None:
+                neurons = neurons[neurons.condition == condition]
+        if key is not None:
+            neurons = neurons[neurons.task == key]
+        elif self.skip_task2b:
+            neurons = neurons[neurons.task != 'Task2b']
+        trial_groups = trials.groupby('neuron_id', sort=False)
+        spike_groups = {cell: group.spike_ms.to_numpy()
+                        for cell, group in spikes.groupby('neuron_id', sort=False)}
+        self.Sessions = []
+        for neuron in neurons.itertuples(index=False):
+            data = trial_groups.get_group(neuron.neuron_id).sort_values('trial')
+            session = self.extract_trial_data(
+                data, spike_groups.get(neuron.neuron_id, np.array([])), neuron)
+            if self.skip_unknown_trial_types:
+                session = [trial for trial in session
+                           if pd.notna(trial['original_trial_type'])
+                           and trial['trial_type'] != 0]
+            if self.skip_missing_licks:
+                session = [trial for trial in session if trial['lick_aligned']]
+            if session:
+                self.Sessions.append(session)
+        if self.combine_neurons:
+            self.Sessions = self._combine_neuron_sessions(self.Sessions)
+        self.mouse_names = sorted({session[0]['mouse'] for session in self.Sessions})
+        add_DA_at_CS_onset(self)
+        add_first_anticipatory_lick_time(self)
+
+    def _combine_neuron_sessions(self, sessions):
+        """
+        align trials by original index and average normalized neural data
+        """
+        recordings = {}
+        for session in sessions:
+            key = (session[0]['mouse'], session[0]['day_index'])
+            recordings.setdefault(key, []).append(session)
+        combined_sessions = []
+        for (mouse, day_index), neuron_sessions in recordings.items():
+            neuron_ids = tuple(session[0]['cell_name'] for session in neuron_sessions)
+            trials_by_neuron = [{trial['trial_index']: trial for trial in session}
+                                for session in neuron_sessions]
+            indices = sorted(trials_by_neuron[0])
+            if any(sorted(trials) != indices for trials in trials_by_neuron):
+                raise ValueError(f'Cannot combine {mouse}, {day_index}: trial indices differ')
+            combined = []
+            for index in indices:
+                trials = [lookup[index] for lookup in trials_by_neuron]
+                first = trials[0]
+                for trial in trials[1:]:
+                    fields = ('trial_type', 'task', 'reward_onset', 'rewarded',
+                              'lick_aligned')
+                    if self.year == '2018':
+                        fields += ('condition',)
+                    if (any(trial[field] != first[field] for field in fields) or
+                            not np.array_equal(trial['licks'], first['licks'],
+                                               equal_nan=True)):
+                        raise ValueError(
+                            f'Cannot combine {mouse}, {day_index}, trial {index}: '
+                            'task events or licking differ between neurons')
+                trial = first.copy()
+                trial['DA_per_neuron'] = np.column_stack([t['DA'] for t in trials])
+                trial['DA'] = trial['DA_per_neuron'].mean(axis=1)
+                trial['baseline_DA_rate_per_neuron'] = np.array(
+                    [t['baseline_DA_rate'] for t in trials])
+                trial['baseline_DA_rate'] = trial['baseline_DA_rate_per_neuron'].mean()
+                trial['neuron_ids'] = neuron_ids
+                trial['cell_name'] = f'{mouse}_{day_index}'
+                combined.append(trial)
+            combined_sessions.append(combined)
+        return combined_sessions
+
+    def extract_trial_data(self, trials, spikes, neuron):
+        """
+        bin neuralynx-clock events (ms), then normalize per neuron
+        """
+        edges = np.arange(-self.t_pre, self.t_post+1, self.bin_size)
+        odor_codes = {'A': 1, 'B': 2, 'C': 3, 'D': 4}
+        results = []
+        for trial in trials.itertuples(index=False):
+            if pd.isna(trial.odor_on_ms): # free reward: no CS to align to
+                continue
+            relative_spikes = spikes - trial.odor_on_ms
+            in_window = ((relative_spikes >= -self.t_pre) &
+                         (relative_spikes < self.t_post))
+            counts, _ = np.histogram(relative_spikes[in_window], edges)
+            baseline = ((relative_spikes >= -1000) &
+                        (relative_spikes <= 0)).sum() * self.bin_size / 1000
+            lick_aligned = bool(trial.lick_aligned) and trial.licks_rel_ms is not None
+            if lick_aligned:
+                lick_times = np.asarray(trial.licks_rel_ms, dtype=float)
+                in_window = (lick_times >= -self.t_pre) & (lick_times < self.t_post)
+                licks, _ = np.histogram(lick_times[in_window], edges)
+            else:
+                licks = np.full(len(self.times), np.nan)
+            expected_delay = self.reward_times.get(trial.odor, np.nan)
+            if trial.odor == 'B':
+                expected_delay = 2.0 if neuron.task == 'Task2b' else 1.2
+            rewarded = pd.notna(trial.reward_on_ms)
+            reward_onset = ((trial.reward_on_ms - trial.odor_on_ms) / 1000
+                            if rewarded else expected_delay)
+            results.append({
+                'licks': licks, 'DA': counts, 'times': self.times,
+                'baseline_DA_rate': baseline,
+                'trial_type': odor_codes.get(trial.odor, 0),
+                'trial_index': trial.trial, 'mouse': neuron.mouse,
+                'day_index': neuron.nlx_stamp, 'cell_name': neuron.neuron_id,
+                'original_trial_type': trial.trial_type, 'task': neuron.task,
+                'reward_onset': reward_onset, 'rewarded': rewarded,
+                'lick_aligned': lick_aligned})
+            if self.year == '2018':
+                results[-1]['condition'] = neuron.condition
+        if results:
+            rates = np.array([trial['baseline_DA_rate'] for trial in results])
+            mu, sd = rates.mean(), rates.std()
+            # A constant baseline cannot define a z-score; keep DA finite.
+            for trial in results:
+                trial['DA'] = (trial['DA'] - mu) / (sd if sd > 0 else 1.0)
         return results
 
 #%% Kim2020
